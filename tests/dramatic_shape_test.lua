@@ -119,6 +119,46 @@ T.eq(byLabel.VOXEL.value(), "FULL", "the row renders the current rung's label")
 
 local Runtime = require("src.mods.Runtime")
 local VoxelState = run.loader.exports.DRAMATIC_SHAPE.lib.require("VoxelState")
+-- ------- reaching the rows now that they are on menus of their own
+--
+-- The ui.options.rows hook contributes ONE row to the engine's list, and that
+-- row opens the mod's own screens. So a test asks SettingsMenu.rows -- which
+-- is pure on purpose, precisely so that asking what is on a menu does not mean
+-- pushing one -- rather than scanning the hook's output for a setting.
+--
+-- Keyed by id, because that is the one thing about a row that is a promise.
+-- The old positional lookups (hookedRows[7] is 3D-BTL) pinned an ORDER the
+-- menus are now free to change, and every one of them had to be rewritten to
+-- get here; none of them was testing the order on purpose.
+--
+-- One table rather than three locals: this file is one Lua chunk, a chunk has
+-- 200 local slots, and it is already spending them carefully (see the scoped
+-- sections throughout).
+local Menus = { lib = run.loader.exports.DRAMATIC_SHAPE.lib.require("SettingsMenu") }
+
+function Menus.rows(catId, game)
+  local ids = {}
+  for _, row in ipairs(Menus.lib.rows(catId, game or { data = Data })) do
+    ids[row.id] = row
+  end
+  return ids
+end
+
+-- every row the mod offers ANYWHERE: the root menu plus all four categories.
+-- What most of this file wants, since "is this setting on a menu at all" is
+-- the question the `when` and `full` gates actually answer.
+function Menus.offered(game)
+  local ids = Menus.rows(Menus.lib.ROOT, game)
+  for _, cat in ipairs(Menus.lib.CATEGORIES) do
+    for id, row in pairs(Menus.rows(cat.id, game)) do ids[id] = row end
+  end
+  return ids
+end
+
+-- the id of a category's own row on the root menu
+function Menus.catId(catId)
+  return Menus.lib.id(catId)
+end
 
 -- ------- FULL is a preset that owns the rows describing the LOOK
 --
@@ -131,31 +171,67 @@ local VoxelState = run.loader.exports.DRAMATIC_SHAPE.lib.require("VoxelState")
 -- diorama the preset is a preset FOR. FULL sets them on arrival and then lets
 -- go, which is what makes it a preset rather than a lock.
 Pipelines.setLevel("voxel", VoxelState.FULL_LEVEL)
+-- scoped, like the sections below: this file is one Lua chunk and a chunk has
+-- 200 local slots, so a section that wants four borrows them
+do
 local fullRows = Runtime.call("ui.options.rows", function(_, r) return r end,
                               { data = Data },
                               { { id = "tilt" }, { id = "pipeline:voxel" },
                                 { id = "pipeline:tiltshift" } })
 local fullIds = {}
 for _, row in ipairs(fullRows) do fullIds[row.id] = true end
-T.check(fullIds["pipeline:voxel"], "FULL keeps the VOXEL row it lives on")
-T.check(not fullIds["pipeline:tiltshift"],
+-- what the hook leaves on the ENGINE's list: one row, and the pipeline rows
+-- gone from it because they have moved onto the mod's own root menu
+T.check(fullIds[Menus.catId(Menus.lib.ROOT)],
+  "the mod contributes exactly one row to the OPTIONS menu")
+T.check(not fullIds["pipeline:voxel"],
+  "and takes VOXEL off the engine's list -- it lives on the mod's menu now")
+T.check(not fullIds["pipeline:tiltshift"], "and T-SHIFT with it")
+T.eq(fullRows[1].id, Menus.catId(Menus.lib.ROOT),
+  "and it LEADS the list: a mod that replaces the look of the whole game "
+  .. "should not make the player scroll to find out where its settings went")
+
+local fullRoot = Menus.rows(Menus.lib.ROOT)
+local fullOffered = Menus.offered()
+T.check(fullRoot["pipeline:voxel"], "FULL keeps the VOXEL row it lives on")
+T.check(not fullRoot["pipeline:tiltshift"],
   "FULL takes T-SHIFT off the menu -- it owns the blur")
-T.check(not fullIds["DRAMATIC_SHAPE:grid"], "and V-GRID")
-T.check(not fullIds["DRAMATIC_SHAPE:curve"], "and V-CURVE")
-T.check(not fullIds["DRAMATIC_SHAPE:viewbox"], "and RENDER DIST")
-T.check(not fullIds["DRAMATIC_SHAPE:daytime"], "and DAYTIME")
+T.check(not fullOffered["DRAMATIC_SHAPE:grid"], "and V-GRID")
+T.check(not fullOffered["DRAMATIC_SHAPE:curve"], "and V-CURVE")
+T.check(not fullOffered["DRAMATIC_SHAPE:viewbox"], "and RENDER DIST")
+T.check(not fullOffered["DRAMATIC_SHAPE:water"], "and WATER")
+T.check(not fullOffered["DRAMATIC_SHAPE:daytime"], "and DAYTIME")
+-- and with all five of them gone the category has nothing left in it, so it
+-- takes ITSELF off the root menu. No rule anywhere says "hide 3D WORLD under
+-- FULL" -- that category is exactly the rows FULL owns, and an empty category
+-- is not offered.
+T.check(not fullRoot[Menus.catId("world")],
+  "so 3D WORLD is empty, and an empty category is not offered")
 
 -- but the battle rows survive it: they are not knobs on the look, and FULL
 -- sets them once rather than holding them, so a player who wants the classic
 -- back sprite (or no staged fights at all) can still say so from inside FULL
-T.check(fullIds["DRAMATIC_SHAPE:battles"], "3D-BTL is still on the menu under FULL")
-T.check(fullIds["DRAMATIC_SHAPE:battleBack"], "and BACK SPRITES with it")
+T.check(fullOffered["DRAMATIC_SHAPE:battles"],
+  "3D-BTL is still on the menu under FULL")
+T.check(fullOffered["DRAMATIC_SHAPE:battleBack"], "and BACK SPRITES with it")
+T.check(fullRoot[Menus.catId("battles")],
+  "and the category that carries them is still offered")
 -- and AA, for the opposite reason: it is not a knob on the look at all, it is
 -- what the look COSTS, and only the player knows what their machine can carry
-T.check(fullIds["DRAMATIC_SHAPE:aa"], "and AA, which FULL neither sets nor owns")
+T.check(fullOffered["DRAMATIC_SHAPE:aa"],
+  "and AA, which FULL neither sets nor owns")
+-- SHADOWS on the same reasoning: the sun's pass is what the look costs, and
+-- a preset for the diorama does not get to spend a second draw of the whole
+-- world on a machine that cannot carry one
+T.check(fullOffered["DRAMATIC_SHAPE:shadows"],
+  "and SHADOWS, the other row that is a question about the hardware")
+T.check(fullRoot[Menus.catId("perf")],
+  "PERFORMANCE is the category for exactly that question, and it survives too")
 -- VR survives FULL on AA's reasoning: whether a headset is on the desk is
 -- not the diorama's to decide
-T.check(fullIds["DRAMATIC_SHAPE:vr"], "and VR, likewise the hardware's question")
+T.check(fullOffered["DRAMATIC_SHAPE:vr"],
+  "and VR, likewise the hardware's question")
+end
 
 -- DAYTIME is not only hidden under FULL, it is HELD at SYNC: the row cannot
 -- be reached while FULL owns it, so a value changed underneath (the mod
@@ -285,8 +361,14 @@ local fxIds = {}
 for _, row in ipairs(fxRows) do fxIds[row.id] = true end
 T.check(not fxIds["tilt"], "TILT is off the OPTIONS menu")
 T.check(not fxIds["gbcfx"], "and so is GBC FX")
-T.check(fxIds["colors"] and fxIds["pipeline:voxel"],
+T.check(fxIds["colors"],
   "with every other row the engine offered still on it")
+-- VOXEL is off this list too, but for the opposite reason: not taken away,
+-- MOVED -- onto the mod's own root menu, which the one remaining row opens
+T.check(not fxIds["pipeline:voxel"] and fxIds[Menus.catId(Menus.lib.ROOT)],
+  "and VOXEL moved onto the mod's own menu rather than being dropped")
+T.check(Menus.rows(Menus.lib.ROOT)["pipeline:voxel"],
+  "-- where it is still offered")
 
 T.eq(fxGame.save.options.tilt, 0,
   "a save that had TILT on is pinned back to off, not left on with no row")
@@ -305,32 +387,72 @@ T.check(not fullFxIds["tilt"] and not fullFxIds["gbcfx"],
 Pipelines.setLevel("voxel", 2)
 end
 
--- ------- and off FULL, the rows come back, grouped with the mode
+-- ------- and off FULL, the rows come back -- on the mod's own menus
 --
--- The engine splices a pipeline row in beside TILT and lands a mod's own
--- additions at the END of the list, which would leave this mode's four rows
--- in two places with unrelated rows between them.
+-- What the engine's list carries is ONE row, and it leads. What that row opens
+-- is the mod: the two pipeline rows it took off the engine's list, and the
+-- four categories.
 Pipelines.setLevel("voxel", 2)
+do
 local grouped = Runtime.call("ui.options.rows", function(_, r) return r end,
                              { data = Data },
                              { { id = "tilt" }, { id = "pipeline:voxel" },
                                { id = "pipeline:tiltshift" },
                                { id = "void_fill" } })
-local order = {}
-for i, row in ipairs(grouped) do order[row.id] = i end
-T.check(order["pipeline:tiltshift"] < order["DRAMATIC_SHAPE:grid"],
-  "the mode's settings follow its pipeline rows")
--- V-GRID, V-CURVE, RENDER DIST, WATER, FOREST FX, then 3D-BTL
-T.eq(order["DRAMATIC_SHAPE:battles"] - order["pipeline:tiltshift"], 6,
-  "and sit in one unbroken block, not scattered to the end of the list")
-T.check(order["void_fill"] > order["DRAMATIC_SHAPE:battles"],
-  "with the engine's own later rows still after them")
+-- the engine gave it four rows and got three back: three of ours are gone
+-- (tilt dropped, both pipelines moved) and one is added, at the front
+-- the engine offered four and two come back: TILT dropped, both pipeline rows
+-- moved onto the mod's own menu, and one row added at the front
+T.eq(#grouped, 2, "one row for the whole mod, and the engine's own beneath it")
+T.eq(grouped[1].id, Menus.catId(Menus.lib.ROOT), "and it leads the list")
+T.eq(grouped[2].id, "void_fill",
+  "with the engine's own rows following in the order it built them")
+
+local root = Menus.rows(Menus.lib.ROOT)
+T.check(root["pipeline:voxel"] and root["pipeline:tiltshift"],
+  "both pipeline rows are on the mod's root menu")
+for _, cat in ipairs({ "world", "battles", "perf", "vr" }) do
+  T.check(root[Menus.catId(cat)],
+    ("off FULL the %s category is offered"):format(cat))
+end
+
+-- the split itself: each setting on the category that owns it, and nowhere
+-- else. Order inside a category is free to change; membership is the promise.
+local WHERE = {
+  grid = "world", curve = "world", viewbox = "world", water = "world",
+  daytime = "world",
+  battles = "battles", battleBack = "battles", letsgo = "battles",
+  atmos = "perf", shadows = "perf", aa = "perf",
+  vr = "vr", smoothturn = "vr",
+}
+for key, cat in pairs(WHERE) do
+  local id = "DRAMATIC_SHAPE:" .. key
+  -- smoothturn and battleBack need their own switch on first; they are
+  -- checked where those switches are, so only assert the ones offered now
+  if Menus.offered()[id] then
+    T.check(Menus.rows(cat)[id],
+      ("%s is on the %s menu"):format(key, cat))
+  end
+end
+-- the ROM import is an action, not a setting, and it is one-time SETUP, so it
+-- sits on the top-level menu where the mod begins rather than two levels down
+-- the category it unlocks
+T.check(Menus.rows(Menus.lib.ROOT)["DRAMATIC_SHAPE:stadiumRom"],
+  "and STADIUM ROM is on the top-level menu, not inside a category")
+T.check(not Menus.rows("battles")["DRAMATIC_SHAPE:stadiumRom"],
+  "and only there")
+do
+  local rootRows = Menus.lib.rows(Menus.lib.ROOT, { data = Data })
+  T.eq(rootRows[#rootRows].id, "DRAMATIC_SHAPE:stadiumRom",
+    "last on it, because the categories are what the menu is for")
+end
+end
 
 -- ------- the open menu notices when FULL is stepped onto or off
 --
--- OptionsMenu reads its row list every frame but builds it once, so without
--- a rebuild the rows FULL owns stay on screen until the menu is reopened --
--- and stepping OFF FULL never brings them back.
+-- A menu reads its row list every frame but builds it once, so without a
+-- rebuild the rows FULL owns stay on screen until it is reopened -- and
+-- stepping OFF FULL never brings them back.
 local OptionsMenu = require("src.ui.OptionsMenu")
 local pressed = {}
 local menuGame = {
@@ -338,17 +460,30 @@ local menuGame = {
   save = { options = { pipelines = {}, modOptions = {} } },
   mods = { modOptions = {} },
   input = { wasPressed = function(_, k) return pressed[k] or false end },
-  stack = { pop = function() end },
+  -- a real stack, because the mod's own menus push and pop on it
+  stack = {
+    states = {},
+    push = function(s, st) s.states[#s.states + 1] = st end,
+    pop = function(s) s.states[#s.states] = nil end,
+    top = function(s) return s.states[#s.states] end,
+  },
   writeOptions = function() end,
 }
 
-Pipelines.setLevel("voxel", 2)
-local menu = OptionsMenu.new(menuGame)
 local function rowIndex(m, id)
   for i, row in ipairs(m.rows) do if row.id == id then return i end end
 end
-T.check(rowIndex(menu, "DRAMATIC_SHAPE:grid"),
-  "off FULL the menu opens with the mode's settings on it")
+
+Pipelines.setLevel("voxel", 2)
+-- The mod's root menu shows the ENGINE's own pipeline descriptors, captured by
+-- the hook on its way past. The sections above fed the hook stub rows, which
+-- are enough to test what is dropped but carry no step function -- so hand it
+-- the real ones before driving the menu, or a keypress on VOXEL does nothing.
+Runtime.call("ui.options.rows", function(_, r) return r end, menuGame,
+             Pipelines.rows(menuGame))
+local menu = Menus.lib.new(menuGame, Menus.lib.ROOT)
+T.check(rowIndex(menu, Menus.catId("world")),
+  "off FULL the root menu opens with the 3D WORLD category on it")
 
 -- step the VOXEL row from 15 down to FULL, the way the player would
 menu.index = rowIndex(menu, "pipeline:voxel")
@@ -356,10 +491,12 @@ pressed = { left = true }
 menu:update(0)
 pressed = {}
 T.eq(Pipelines.level("voxel"), 1, "the step landed on FULL")
-T.check(not rowIndex(menu, "DRAMATIC_SHAPE:grid"),
-  "and the rows FULL owns left the OPEN menu at once")
-T.check(not rowIndex(menu, "pipeline:tiltshift"), "T-SHIFT with them")
+T.check(not rowIndex(menu, Menus.catId("world")),
+  "and the category FULL emptied left the OPEN menu at once")
+T.check(not rowIndex(menu, "pipeline:tiltshift"), "T-SHIFT with it")
 T.check(menu.index <= #menu.rows + 1, "the cursor stayed in range")
+T.eq(menu.index, rowIndex(menu, "pipeline:voxel"),
+  "and stayed on the row the player just used")
 
 -- and back off it again
 menu.index = rowIndex(menu, "pipeline:voxel")
@@ -367,16 +504,17 @@ pressed = { right = true }
 menu:update(0)
 pressed = {}
 T.eq(Pipelines.level("voxel"), 2, "the step left FULL")
-T.check(rowIndex(menu, "DRAMATIC_SHAPE:grid"),
-  "and the rows came straight back without reopening the menu")
+T.check(rowIndex(menu, Menus.catId("world")),
+  "and the category came straight back without reopening the menu")
 T.check(rowIndex(menu, "pipeline:tiltshift"), "T-SHIFT too")
 
--- ------- 3D-BTL owns BATTLE LAYOUT, and takes it off the OPEN menu too
+-- ------- 3D-BTL owns BATTLE LAYOUT, from a menu the OPTIONS list cannot see
 --
--- The row this one takes away sits ABOVE it in the list, so the cursor has to
--- follow the row it was ON rather than the slot it was in -- otherwise the very
--- press that switched staged battles on would leave the cursor a row further
--- down than the player left it.
+-- The switch lives on the mod's BATTLES menu now, and the stack ticks its TOP
+-- state only (src/core/StateStack.update). So the step happens while the
+-- OPTIONS menu underneath is suspended, and a before/after pair taken around
+-- one call of its update would be read entirely after the fact and always
+-- agree. The signature is held on the instance for exactly this.
 do
 local Battles = run.loader.exports.DRAMATIC_SHAPE.lib.require("OverworldBattle")
 Battles.setting:setValue(false, menuGame)         -- staged battles off
@@ -385,37 +523,369 @@ Pipelines.setLevel("voxel", 2)
 local layoutMenu = OptionsMenu.new(menuGame)
 T.check(rowIndex(layoutMenu, "battleLayout"),
   "with staged battles off, the engine's BATTLE LAYOUT row is on the menu")
-layoutMenu.index = rowIndex(layoutMenu, "DRAMATIC_SHAPE:battles")
+
+local battleMenu = Menus.lib.new(menuGame, "battles")
+T.check(not rowIndex(battleMenu, "DRAMATIC_SHAPE:battleBack"),
+  "and BACK SPRITES is off the BATTLES menu, having no staged fight to frame")
+battleMenu.index = rowIndex(battleMenu, "DRAMATIC_SHAPE:battles")
 pressed = { right = true }
-layoutMenu:update(0)
+battleMenu:update(0)
 pressed = {}
 T.eq(Battles.setting:get(), true, "the step switched staged battles on")
-T.check(not rowIndex(layoutMenu, "battleLayout"),
-  "and BATTLE LAYOUT left the open menu with the same keypress")
 T.eq(menuGame.save.options.battleLayout, "og", "pinned to OG on the way out")
-T.eq(layoutMenu.index, rowIndex(layoutMenu, "DRAMATIC_SHAPE:battles"),
+T.check(rowIndex(battleMenu, "DRAMATIC_SHAPE:battleBack"),
+  "and BACK SPRITES arrived on the open submenu with the same keypress")
+-- it arrives BELOW the row that was used, so this one only holds because the
+-- cursor follows the row rather than the slot
+T.eq(battleMenu.index, rowIndex(battleMenu, "DRAMATIC_SHAPE:battles"),
   "with the cursor still on the row the player just used")
+
+layoutMenu:update(0)
+T.check(not rowIndex(layoutMenu, "battleLayout"),
+  "and the OPTIONS menu underneath drops BATTLE LAYOUT on its next update, "
+  .. "though the step it is reacting to happened while it was suspended")
+end
+
+-- ------- the row OPENS the menus, and B comes back one level at a time
+do
+menuGame.stack.states = {}
+Pipelines.setLevel("voxel", 2)
+local hookRow
+for _, row in ipairs(Runtime.call("ui.options.rows", function(_, r) return r end,
+                                  menuGame, Pipelines.rows(menuGame))) do
+  if row.id == Menus.catId(Menus.lib.ROOT) then hookRow = row end
+end
+T.check(hookRow.activate and not hookRow.step,
+  "the row answers A alone -- `activate` SHADOWS `step` in the engine's own "
+  .. "dispatch, so a row carrying both would silently ignore Left and Right")
+T.eq(hookRow.value(menuGame), "15",
+  "and its second line is VOXEL's own, so it says what the mode is doing "
+  .. "without being opened")
+
+hookRow.activate(menuGame)
+local root = menuGame.stack:top()
+T.check(root ~= nil, "pressing A pushed a screen")
+T.eq(#root.rows, #Menus.lib.rows(Menus.lib.ROOT, menuGame),
+  "carrying the root menu's rows")
+T.eq(root:backLabel(), "B BACK  SEL HELP",
+  "and a bottom line naming the two buttons that are not obvious")
+T.check(#root:backLabel() <= 18,
+  "which fits the eighteen characters the line has")
+
+-- the second line of a category row
+T.eq(root.rows[rowIndex(root, Menus.catId("battles"))].value(),
+     Menus.rows("battles", menuGame)["DRAMATIC_SHAPE:battles"].value(),
+  "a category one setting speaks for says that setting's rung")
+T.eq(root.rows[rowIndex(root, Menus.catId("world"))].value(), "5 SETTINGS",
+  "and one no single row speaks for counts them instead, which is honest "
+  .. "rather than arbitrary")
+
+-- into a category, and back out of it a level at a time
+root.index = rowIndex(root, Menus.catId("world"))
+pressed = { a = true }
+root:update(0)
+pressed = {}
+T.check(menuGame.stack:top() ~= root,
+  "A on a category opens it, as a screen of its own")
+T.eq(menuGame.stack:top().cat, "world", "the one the cursor was on")
+
+pressed = { b = true }
+menuGame.stack:top():update(0)
+pressed = {}
+T.eq(menuGame.stack:top(), root, "B comes back ONE level, to the root menu")
+pressed = { start = true }
+root:update(0)
+pressed = {}
+T.eq(menuGame.stack:top(), nil, "and START leaves it the way B does")
+end
+
+-- ------- SELECT explains the row the cursor is on
+--
+-- Every setting has carried a paragraph of help since it was written -- it
+-- goes into the schema the mod manager is handed -- and nothing in the engine
+-- has ever drawn one. A row says what it IS and what it is SET TO, and no
+-- engine row anywhere has room for a third thing.
+do
+menuGame.stack.states = {}
+Pipelines.setLevel("voxel", 2)
+local Help = run.loader.exports.DRAMATIC_SHAPE.lib.require("SettingsHelp")
+local menu2 = Menus.lib.new(menuGame, "world")
+
+-- every row on every menu has something to say, the two engine-owned pipeline
+-- rows and the ROM import included -- those three keep theirs in SettingsMenu,
+-- having no SETTINGS entry of their own to keep it in
+for _, cat in ipairs({ Menus.lib.ROOT, "world", "battles", "perf", "vr" }) do
+  for _, row in ipairs(Menus.lib.rows(cat, menuGame)) do
+    T.check(Menus.lib.helpFor(row.id),
+      ("%s has help behind SELECT"):format(row.id))
+  end
+end
+T.check(not Menus.lib.helpFor("nothing:here"),
+  "and a row with nothing to say gets nil rather than an empty box")
+
+-- every character of every one of them has a glyph in the ROM's font.
+--
+-- Read from the REAL charmap rather than the fixture's, which is a stub with
+-- seven entries in it. This is the one place in the mod where prose reaches
+-- the screen verbatim, and Font.encode answers a character it does not know
+-- with a SPACE and a one-time console warning that nobody is reading -- so a
+-- curly quote or a `%` pasted in from somewhere would blank a word and say
+-- nothing about it.
+do
+  local ok, font = pcall(dofile, "data/generated/font.lua")
+  if ok and font and font.charmap then
+    local glyph = { [" "] = true }
+    for _, e in ipairs(font.charmap) do
+      if #e.seq == 1 then glyph[e.seq] = true end
+    end
+    local missing = {}
+    for _, cat in ipairs({ Menus.lib.ROOT, "world", "battles", "perf", "vr" }) do
+      for _, row in ipairs(Menus.lib.rows(cat, menuGame)) do
+        for ch in (Menus.lib.helpFor(row.id) or ""):gmatch(".") do
+          if not glyph[ch] then missing[ch] = true end
+        end
+      end
+    end
+    local names = {}
+    for ch in pairs(missing) do names[#names + 1] = ("%q"):format(ch) end
+    table.sort(names)
+    T.eq(#names, 0, "every character of every help string has a glyph in the "
+      .. "ROM font -- these do not: " .. table.concat(names, " "))
+  end
+end
+
+menu2.index = rowIndex(menu2, "DRAMATIC_SHAPE:viewbox")
+pressed = { select = true }
+menu2:update(0)
+pressed = {}
+local box = menuGame.stack:top()
+T.check(box ~= nil and box ~= menu2, "SELECT opens a box over the menu")
+T.eq(box.title, "RENDER DIST", "titled with the row it explains")
+T.check(#box.lines > 1, "carrying the row's own description, wrapped")
+for _, line in ipairs(box.lines) do
+  T.check(#line <= 17,
+    "every line fits between the border and the more-arrow's column")
+end
+
+-- ------- every description is ONE SENTENCE, and the whole of it is on screen
+--
+-- Both halves matter and the second follows from the first. The box is sized
+-- to what it holds and anchored to the bottom, so a description that fits is
+-- read at a glance with the row it describes still visible above it -- and one
+-- that does not turns a glance into a scroll, which is a worse answer to
+-- "what does this do" than a shorter sentence would have been.
+--
+-- One sentence is: ends with a full stop, and has none inside it. The version
+-- numbers that would break that naive test ("US 1.0") have no space after the
+-- point, which is why the check is for ". " rather than for ".".
+do
+  local long, many = {}, {}
+  for _, cat in ipairs({ Menus.lib.ROOT, "world", "battles", "perf", "vr" }) do
+    for _, row in ipairs(Menus.lib.rows(cat, menuGame)) do
+      local help = Menus.lib.helpFor(row.id)
+      if help then
+        if help:find(". ", 1, true) or not help:find("%.$") then
+          many[#many + 1] = row.id
+        end
+        local probe = Help.new(menuGame, row.label, help)
+        if probe:maxTop() > 0 then
+          long[#long + 1] = ("%s (%d lines)"):format(row.id, #probe.lines)
+        end
+      end
+    end
+  end
+  T.eq(#many, 0,
+    "every description is one sentence -- these are not: "
+    .. table.concat(many, ", "))
+  T.eq(#long, 0,
+    "and every one of them fits its box without scrolling: "
+    .. table.concat(long, ", "))
+end
+
+-- the scroll is still there, for a description that outgrows the box despite
+-- the check above -- a mod-supplied font with a wider glyph, or a sentence
+-- somebody lengthens later. It stops at both ends rather than wrapping.
+do
+  local tall = Help.new(menuGame, "TALL", ("word "):rep(80))
+  T.check(tall:maxTop() > 0, "a description too long for the box scrolls")
+  T.eq(tall.top, 0, "opening at the top")
+  pressed = { up = true }
+  tall:update()
+  pressed = {}
+  T.eq(tall.top, 0, "up at the top stays there")
+  pressed = { down = true }
+  tall:update()
+  pressed = {}
+  T.eq(tall.top, 1, "down moves one line")
+  for _ = 1, 200 do
+    pressed = { down = true }
+    tall:update()
+    pressed = {}
+  end
+  T.eq(tall.top, tall:maxTop(), "and the end of the text ends the scroll")
+  T.eq(tall:maxTop(), #tall.lines - tall:bodyRows(),
+    "with the last boxful still full, not one line stranded at the bottom")
+end
+
+-- and every button that could mean "done" closes it -- SELECT included, which
+-- is the one a player who just pressed it will reach for
+for _, btn in ipairs({ "a", "b", "start", "select" }) do
+  menuGame.stack.states = {}          -- the scrolled box above is still open
+  menu2.index = rowIndex(menu2, "DRAMATIC_SHAPE:viewbox")
+  pressed = { select = true }
+  menu2:update(0)
+  pressed = {}
+  T.check(menuGame.stack:top() ~= nil, "the box is open")
+  pressed = { [btn] = true }
+  menuGame.stack:top():update()
+  pressed = {}
+  T.eq(menuGame.stack:top(), nil, ("%s closes it"):format(btn:upper()))
+end
+
+-- a title strips the "..'" a category row wears to say it opens something:
+-- inside the box it has already opened, the dots are a promise about a press
+-- that has been made
+T.eq(Help.new(menuGame, "3D WORLD..", "x").title, "3D WORLD",
+  "a category's box is titled without the dots that meant `opens something'")
+-- and the wrap never strands a word it cannot fit
+T.eq(#Help.wrapped(("y"):rep(40))[1], 17,
+  "a word longer than the line is broken across lines rather than cut")
+end
+
+-- ------- the mod's row is RED, which is a palette zone and not a color
+--
+-- setColor cannot do it here twice over: the glyph atlas is black ink and LOVE
+-- tints multiplicatively, and the palette shader keys on the red channel alone
+-- so a red pixel would land in the LIGHTEST slot (see lib/SettingsMenu.lua).
+-- What a zone changes is which color the SHADE the text was drawn in comes out
+-- as, so what there is to assert is where the band sits and which slot carries
+-- the ink.
+do
+local PaletteFX = require("src.render.PaletteFX")
+-- the fixture dataset ships no palettes; stand MEWMON up, since the point is
+-- that the red palette is MEWMON COPIED rather than four invented colors
+Data.palettes = { palettes = {
+  MEWMON = { { 255, 239, 255 }, { 255, 140, 140 }, { 80, 80, 255 }, { 0, 0, 0 } },
+} }
+
+local red = Menus.lib.redPalette(Data)
+T.eq(#red, 4, "the red palette is a palette like any other, four colors")
+T.eq(red[1][2], 239,
+  "and its paper is MEWMON's own -- Red, Blue and Yellow ship different "
+  .. "tables, and the row must not shift the white it sits on")
+
+-- What has to hold is not which slot the red is in but where it comes OUT:
+-- black text is shade 3 and the white box fill shade 0, and the display mode
+-- transforms the table before the shader ever sees it (effectiveColors). So
+-- assert through that, which is the thing the screen actually draws.
+do
+  local eff = PaletteFX.effectiveColors(red)
+  T.check(eff[4][1] == 255 and eff[4][2] == 0 and eff[4][3] == 0,
+    "the ink shade comes out red")
+  T.eq(eff[1][2], 239, "and the paper shade is the white it always was")
+end
+
+-- SGB INV REVERSES the table, so the red has to start in the other slot to
+-- land on the ink. Without the special case the row draws as a solid red
+-- block with the letters cut out of it.
+PaletteFX.mode = "gbc_inv"
+do
+  local eff = PaletteFX.effectiveColors(Menus.lib.redPalette(Data))
+  T.check(eff[4][1] == 255 and eff[4][2] == 0,
+    "under SGB INV the ink shade STILL comes out red, once the mode has had "
+    .. "its turn at the table")
+  T.eq(eff[1][1], 0,
+    "on the same dark paper SGB INV gives every other row -- red ink, not a "
+    .. "red block")
+end
+PaletteFX.mode = "gbc"
+
+-- the band covers the two TEXT lines of the box and nothing else: tile 1 is
+-- the cursor and tiles 0 and 19 are the box borders, all of them black glyphs
+-- that would turn red with the label if the zone spanned the whole row
+local zone = Menus.lib.rowZone(Data, 1)
+T.eq(zone.x, 16, "the band starts at the label column, past the cursor")
+T.eq(zone.y, 8, "on the first box's label line")
+T.eq(zone.w, 17 * 8, "and stops short of the box's right border")
+T.eq(zone.h, 16, "covering the label and the value under it")
+T.eq(Menus.lib.rowZone(Data, 3).y, 8 * ((3 - 1) * 4 + 1),
+  "and it is addressed by SLOT, so it follows the row down the screen")
+
+-- on the menu itself: the whole-screen palette it always had, plus one band
+menuGame.stack.states = {}
+Runtime.call("ui.options.rows", function(_, r) return r end, menuGame,
+             Pipelines.rows(menuGame))
+local palMenu = OptionsMenu.new(menuGame)
+T.eq(#palMenu:sgbPalettes(menuGame), 2,
+  "the OPTIONS menu paints its own palette and then the one band")
+T.eq(palMenu:sgbPalettes(menuGame)[2].y, 8,
+  "on row 1, where the mod's row leads the list")
+T.eq(palMenu:sgbPalettes(menuGame)[2].colors[4][1], 255, "and it is the red one")
+
+-- scrolled past, the band goes with it: a red stripe left behind on whatever
+-- took the slot would be worse than no marker at all
+palMenu.scroll = 4
+T.eq(#palMenu:sgbPalettes(menuGame), 1,
+  "scrolled off screen, the row takes its band with it")
+
+-- and a submenu paints its own. This is the whole reason it has the method:
+-- Game:draw stops at the first state that HAS one, so a submenu without it
+-- would inherit the band above and land it on an unrelated row.
+T.eq(#Menus.lib.new(menuGame, Menus.lib.ROOT):sgbPalettes(menuGame), 1,
+  "a submenu owns its palette rather than inheriting the red band")
+
+Data.palettes = nil
 end
 
 -- level 2 is the "15" rung: any rung that is not FULL, so the settings the
 -- preset owns are back on the menu
 Pipelines.setLevel("voxel", 2)
-local hookedRows = Runtime.call("ui.options.rows", function(_, r) return r end,
-                               { data = Data }, { { id = "text_speed" } })
+do
+  -- what the engine really hands the hook: its own rows, the pipeline rows
+  -- among them. The mod moves those two onto its root menu, so a call that
+  -- left them out would leave the root menu with nothing but categories.
+  local given = { { id = "text_speed" } }
+  for _, row in ipairs(Pipelines.rows({ data = Data })) do
+    given[#given + 1] = row
+  end
+  Runtime.call("ui.options.rows", function(_, r) return r end,
+               { data = Data }, given)
+end
+-- Every row the mod offers, keyed by id. RENDER DIST, FOREST FX, LET'S GO,
+-- SHADOWS and AA are read straight out of it where they are used rather than
+-- named here, because this chunk is one main function and has 200 local slots
+-- to spend.
+local hookedRows = Menus.offered()
 -- one per setting, plus the STADIUM ROM action row -- which is not a setting
 -- (nothing to store, nothing for the mod manager to persist) and is offered
 -- on every platform, saying WHERE? rather than IMPORT where there is no file
--- dialog to open
-T.eq(#hookedRows, 13, "the options hook added a row per setting, plus the "
-  .. "STADIUM ROM action row")
-local grid, curve, water = hookedRows[2], hookedRows[3], hookedRows[5]
-local battles, backRow, daytime = hookedRows[7], hookedRows[8], hookedRows[10]
--- the RENDER DIST row is hookedRows[4], FOREST FX hookedRows[6], LET'S GO
--- hookedRows[9] and AA hookedRows[11]; all four are read where they are
--- used rather than named here, because this chunk is one main function and
--- has 200 local slots to spend
-T.eq(hookedRows[4].label, "RENDER DIST", "the viewport row carries its label")
-T.eq(hookedRows[4].value(), "FIT",
+-- dialog to open -- and the four category rows that carry them
+do
+  -- named rather than counted: a count says "something moved" and this says
+  -- WHAT is meant to be reachable. SMOOTH TURN is absent because VR is off,
+  -- which is its own gate and is tested where VR is turned on.
+  local want = { "grid", "curve", "viewbox", "water", "daytime",
+                 "battles", "battleBack", "letsgo", "stadiumRom",
+                 "atmos", "shadows", "aa", "vr" }
+  local n = 0
+  for _ in pairs(hookedRows) do n = n + 1 end
+  for _, key in ipairs(want) do
+    T.check(hookedRows["DRAMATIC_SHAPE:" .. key],
+      ("%s is reachable from the mod's menus"):format(key))
+  end
+  T.check(hookedRows["pipeline:voxel"] and hookedRows["pipeline:tiltshift"],
+    "and both pipeline rows with them")
+  -- those, the two pipelines and the four categories, and nothing else
+  T.eq(n, #want + 2 + 4, "and nothing else is on them")
+end
+local grid = hookedRows["DRAMATIC_SHAPE:grid"]
+local curve, water = hookedRows["DRAMATIC_SHAPE:curve"], hookedRows["DRAMATIC_SHAPE:water"]
+local battles = hookedRows["DRAMATIC_SHAPE:battles"]
+local backRow, daytime = hookedRows["DRAMATIC_SHAPE:battleBack"],
+                         hookedRows["DRAMATIC_SHAPE:daytime"]
+T.eq(hookedRows["DRAMATIC_SHAPE:viewbox"].label, "RENDER DIST",
+  "the viewport row carries its label")
+T.eq(hookedRows["DRAMATIC_SHAPE:viewbox"].value(), "FIT",
   "and defaults to FIT -- the cut IS the window the flat game already "
   .. "framed, which is the whole claim the row makes")
 T.eq(water.label, "WATER", "the water row carries its label")
@@ -424,8 +894,8 @@ T.eq(water.value(), "FULL",
 water.step({ save = { options = {} }, mods = { modOptions = {} } }, 1)
 T.eq(water.value(), "SKY",
   "stepping down drops the screen-space march and keeps the sky, sun and moon")
-T.eq(hookedRows[6].label, "FOREST FX", "the atmosphere row carries its label")
-T.eq(hookedRows[6].value(), "FULL",
+T.eq(hookedRows["DRAMATIC_SHAPE:atmos"].label, "FOREST FX", "the atmosphere row carries its label")
+T.eq(hookedRows["DRAMATIC_SHAPE:atmos"].value(), "FULL",
   "and defaults to FULL -- it only spends anything on a map with an "
   .. "atmosphere entry, which is one forest today")
 T.eq(daytime.label, "DAYTIME", "the day/night row carries its label")
@@ -446,8 +916,8 @@ T.eq(backRow.value(), "OFF",
   .. "map, so the classic slot is opt-in")
 T.check(backRow.id ~= battles.id and backRow.id:find("battleBack", 1, true),
   "on its own key, so it persists beside 3D-BTL rather than over it")
-T.eq(hookedRows[9].label, "LET'S GO", "the capture-mode row carries its label")
-T.eq(hookedRows[9].value(), "OFF",
+T.eq(hookedRows["DRAMATIC_SHAPE:letsgo"].label, "LET'S GO", "the capture-mode row carries its label")
+T.eq(hookedRows["DRAMATIC_SHAPE:letsgo"].value(), "OFF",
   "and starts OFF -- a gameplay mode is opt-in, whatever the diorama does")
 
 -- stepping writes through to the one place both rows read
@@ -527,7 +997,7 @@ do
 local AntiAlias = run.loader.exports.DRAMATIC_SHAPE.lib.require("AntiAlias")
 local VoxelGrid = run.loader.exports.DRAMATIC_SHAPE.lib.require("VoxelGrid")
 local aaGame = { save = { options = {} }, mods = { modOptions = {} } }
-local aa = hookedRows[11]
+local aa = hookedRows["DRAMATIC_SHAPE:aa"]
 T.eq(aa.label, "AA", "the anti-aliasing row carries its label")
 T.eq(aa.value(), "OFF",
   "and starts off -- supersampling is a cost knob, and a mod must not spend "
@@ -566,6 +1036,49 @@ T.eq(aa.value(), "OFF", "and the ladder wraps back to off")
 AntiAlias.expand(320, 200)
 T.eq(AntiAlias.factor(), 1, "leaving nothing behind for the next pass")
 end
+
+-- ------- SHADOWS: the sun's own pass, and the row that stands it down
+--
+-- The most expensive thing in the frame after the geometry -- the whole world
+-- drawn a second time from the light, every time anything in it moves -- so
+-- the row exists for the machine that cannot carry it. What it must do is
+-- switch shadows OFF rather than down: both halves of ShadowMap (can the pass
+-- run, and is there a map to read) hang off the one gate, because the map
+-- from the last frame is still in the canvas and a row that only stopped the
+-- pass would leave every shadow frozen in the pose it was switched off in.
+--
+-- In an anonymous scope, like every section that wants more than a name or
+-- two: this file is one chunk and a chunk has 200 local slots, which the
+-- main function is already sitting on.
+;(function()
+local Shadows = run.loader.exports.DRAMATIC_SHAPE.lib.require("Shadows")
+local ShadowMap = run.loader.exports.DRAMATIC_SHAPE.lib.require("ShadowMap")
+local shadowRow = hookedRows["DRAMATIC_SHAPE:shadows"]
+local shGame = { save = { options = {} }, mods = { modOptions = {} } }
+T.eq(shadowRow.label, "SHADOWS", "the shadow row carries its label")
+T.eq(shadowRow.value(), "ON",
+  "and starts ON -- cast shadows are as much of the mode as the geometry, "
+  .. "and the row is for the machine that cannot have them")
+T.eq(Shadows.enabled(), true, "which is what the pass reads")
+T.eq(ShadowMap.wanted(), true, "and the gate both halves of the sun pass ask")
+
+shadowRow.step(shGame, 1)
+T.eq(shadowRow.value(), "OFF", "stepping the row stands the sun pass down")
+T.eq(shGame.save.options.modOptions.DRAMATIC_SHAPE.shadows, false,
+  "the choice persists beside the other settings, not over them")
+T.eq(Shadows.enabled(), false, "the pass sees it")
+T.eq(ShadowMap.wanted(), false, "through the one gate")
+T.eq(ShadowMap.available(), false,
+  "so the sun pass never opens -- the frame's second draw of the world is "
+  .. "the whole thing being saved")
+T.eq(ShadowMap.active(), false,
+  "and nothing reads the map either: a pass stopped WITHOUT this would leave "
+  .. "the last frame's shadows standing forever")
+
+shadowRow.step(shGame, 1)
+T.eq(shadowRow.value(), "ON", "and the row is a toggle -- one step back on")
+T.eq(ShadowMap.wanted(), true, "with the sun asked for again")
+end)()
 
 -- ------- the animated terrain atlas survives an engine without its seams
 --
@@ -3288,19 +3801,16 @@ T.eq(Battles.backSetting:get(), true, "without being rewritten underneath")
 -- ...so the row comes off the menu with it, on the same reasoning the mod's
 -- other absent rows come off: a row that no longer decides anything is worse
 -- than no row
-local offRows = Runtime.call("ui.options.rows", function(_, r) return r end,
-                             backGame, { { id = "tilt" } })
-local offIds = {}
-for _, row in ipairs(offRows) do offIds[row.id] = true end
-T.check(offIds["DRAMATIC_SHAPE:battles"], "3D-BTL itself is still offered")
-T.check(not offIds["DRAMATIC_SHAPE:battleBack"],
+local offRows = Menus.rows("battles", backGame)
+T.check(offRows["DRAMATIC_SHAPE:battles"], "3D-BTL itself is still offered")
+T.check(not offRows["DRAMATIC_SHAPE:battleBack"],
   "but BACK SPRITES is off the menu while there is no staged fight to be about")
 
 Battles.setting:setValue(true, backGame)
-local onRows = Runtime.call("ui.options.rows", function(_, r) return r end,
-                            backGame, { { id = "tilt" } })
+-- switched back on it returns, and to the BATTLES menu -- the one the switch
+-- it depends on is on, so the two are read together
 local onAt = {}
-for i, row in ipairs(onRows) do onAt[row.id] = i end
+for i, row in ipairs(Menus.lib.rows("battles", backGame)) do onAt[row.id] = i end
 T.check(onAt["DRAMATIC_SHAPE:battleBack"], "switched back on, so is the row")
 T.eq(onAt["DRAMATIC_SHAPE:battleBack"] - onAt["DRAMATIC_SHAPE:battles"], 1,
   "directly under the row it belongs to")
@@ -5914,26 +6424,28 @@ end)()
   local VRMod = lib.require("VR")
   T.eq(VRMod.smoothTurn:get(), false, "SMOOTH TURN is off out of the box")
 
-  local function optionRows()
-    local out = Runtime.call("ui.options.rows", function(_, r) return r end,
-                             { data = Data }, { { id = "tilt" } })
-    local ids = {}
-    for _, row in ipairs(out) do ids[row.id] = row end
-    return ids
-  end
-
   Pipelines.setLevel("voxel", 3)          -- off FULL, which owns other rows
   VRMod.setting:sync(false)
-  T.check(not optionRows()["DRAMATIC_SHAPE:smoothturn"],
-    "with VR off the row is not on the OPTIONS menu")
+  T.check(not Menus.rows("vr")["DRAMATIC_SHAPE:smoothturn"],
+    "with VR off the row is not on the VR menu")
+  -- and with the headset's own row the only thing left on it, that menu is
+  -- still worth offering: a category is dropped when it is EMPTY, not when it
+  -- is short
+  T.check(Menus.rows(Menus.lib.ROOT)[Menus.catId("vr")],
+    "though the category is, on the strength of the VR row alone")
 
   VRMod.setting:sync(true)
-  local smoothRow = optionRows()["DRAMATIC_SHAPE:smoothturn"]
+  local smoothRow = Menus.rows("vr")["DRAMATIC_SHAPE:smoothturn"]
   T.check(smoothRow ~= nil, "and with VR on it is")
   if smoothRow then
     T.eq(smoothRow.label, "SMOOTH TURN", "under its own name")
     T.eq(smoothRow.value(), "OFF", "reading OFF until the player says otherwise")
   end
+  -- VR on takes the two battle rows away, which is the other half of the same
+  -- gate: the headset requires staged battles and forbids back sprites, so
+  -- both rows decide nothing there
+  T.check(not Menus.rows("battles")["DRAMATIC_SHAPE:battles"],
+    "and the battle rows are gone, being decided by the headset instead")
   VRMod.setting:sync(false)
 
   -- ------- the gun's own bookkeeping
@@ -6187,6 +6699,10 @@ T.check(box.z < 200,
   .. "the view centre is the bug that cut the top off")
 do
   local n, s, x = VB.footprint(math.rad(35), 320, 288, REACH)
+  -- the south edge is the ground the bottom ray lands on PLUS what stands
+  -- there: a tree's feet are south of the row its top is seen on, and the
+  -- cut is by column (see lift)
+  s = s + VB.lift(math.rad(35)) + VB.SOUTH_PAD
   T.check(math.abs(box.rz - (n + s) * 0.5) < 1e-6,
     "the half-depth spans the footprint from its south edge to its north")
   T.check(math.abs(box.z - (200 - (n - s) * 0.5)) < 1e-6,
@@ -6196,6 +6712,49 @@ do
     "both bigger than the window at every tilted rung, so the cut can "
     .. "never take a bite out of the picture")
 end
+
+-- ------- and the geometry standing on the ground it frames
+--
+-- The bug: the box was cut to where the frame's rays hit the GROUND, and
+-- the ground is not what the picture is made of. At every rung past the
+-- frame's own half-angle the bottom of the screen shows things whose FEET
+-- are south of that line, and the shader cuts by column -- so a tree one
+-- pixel outside lost its whole height and the bottom of the frame wore a
+-- bite out of the scenery, the ground behind showing through.
+do
+  local tanY = 1 / (2 * VS.FOCAL)
+  T.eq(VB.lift(0), 0,
+    "straight down nothing is lost: a raised point lands NORTH of where its "
+    .. "own ray hits the ground, which no cut can take")
+  T.eq(VB.lift(math.atan(tanY)), 0,
+    "and up to atan(tanY) -- the frame's own half-angle -- it still is")
+  T.check(VB.lift(math.rad(35)) > 0 and VB.lift(math.rad(50)) > VB.lift(math.rad(35))
+          and VB.lift(math.rad(75)) > VB.lift(math.rad(50)),
+    "past it the lift opens with the tilt: the flatter the eye, the more of "
+    .. "a tree is what sits under the bottom of the frame")
+  -- against the ray it is derived from: a point HEIGHT up on the bottom
+  -- edge's own ray, dropped to the ground, is exactly this far south of
+  -- where that ray lands
+  for _, deg in ipairs({ 35, 50, 75 }) do
+    local a = math.rad(deg)
+    local dy = -(math.cos(a) + tanY * math.sin(a))
+    local dz = -(math.sin(a) - tanY * math.cos(a))
+    T.check(math.abs(VB.lift(a) - VB.HEIGHT * (-dz / -dy)) < 1e-9,
+      ("%d degrees: the lift is that ray walked back up by HEIGHT")
+        :format(deg))
+  end
+  -- and it is in the CUT, at FIT, which is the rung the artefact was seen on
+  VS.angle = math.rad(35)
+  local fit = VB.frame(0, 0, 320, 288, 3)
+  local n, s = VB.footprint(math.rad(35), 320, 288, REACH)
+  T.check(fit.z + fit.rz >= s + VB.lift(math.rad(35)) - 1e-6,
+    "so the box's south edge clears the feet of everything the bottom of "
+    .. "the frame can show, tree tops included")
+  T.check(fit.z + fit.rz > s and fit.z - fit.rz < -n + 1e-6,
+    "without moving the north edge, which the reach already decides")
+end
+VS.angle = math.rad(35)
+box = VB.frame(100, 200, 320, 288, 3)
 T.check(box.rx ~= box.rz,
   "which is the whole reason the box kind carries two half-extents: a "
   .. "square cut on a wide frame either loses the sides or overshoots")
@@ -6305,6 +6864,44 @@ end)()
                                mon = { level = 100 } }, 1) >= 1,
     "a trivial catch still pays at least one point")
 
+  -- ------- the capture seat speaks the pull's own language
+  --
+  -- The seat hands BattleScene a pitch, and the only thing downstream reads
+  -- it is the camera-ward pull the grass and flowers are drawn with. That
+  -- angle is measured off STRAIGHT DOWN -- Voxel.angle's convention, and
+  -- BattleCam.rig's -- and this rig used to answer the DEPRESSION below
+  -- level instead, which is its complement. A seat looking nearly level
+  -- therefore read as "straight down", the end of the ladder where the pull
+  -- is at its longest: 46 world pixels of bias handed to a camera standing
+  -- 46 world pixels behind the player. The pull is a shove along each
+  -- vertex's own eye ray, so at that range it carried the grass at the eye
+  -- THROUGH the lens, and a tuft landed smeared across the top of the frame.
+  do
+    local CatchThrow = lib.require("CatchThrow")
+    local BattleCam = lib.require("BattleCam")
+    local VoxelScene = lib.require("VoxelScene")
+    -- two mons two cells apart, the arena laid down unturned
+    local arena = { player = { 100, 200 }, enemy = { 100, 168 },
+                    mid = { 100, 184 }, turn = 0 }
+    local seat, pitch = CatchThrow._rig(arena, 0)
+    T.check(pitch > math.rad(75),
+      ("the capture seat reads as NEARLY LEVEL (%.1f degrees off straight "
+       .. "down), which is what it is"):format(math.deg(pitch)))
+    local _, camPitch = BattleCam.rig(arena, 0, true)
+    T.check(camPitch > math.rad(45) and pitch > math.rad(45),
+      "in the same convention the battle's own rig hands back, so one pull "
+      .. "formula can serve both seats")
+    -- the invariant the bug broke: a bias along the eye ray must never
+    -- reach the eye, or the vertex comes out behind the lens
+    local dx, dz = seat.eye[1] - arena.player[1], seat.eye[3] - arena.player[2]
+    local range = math.sqrt(dx * dx + dz * dz)
+    T.check(VoxelScene.pull(math.max(pitch, 0.05)) < range * 0.5,
+      ("the grass pull (%.1f px) stays well inside the seat's own range to "
+       .. "the player's cell (%.1f px) -- the tufts it is biasing are the "
+       .. "ones standing right there")
+        :format(VoxelScene.pull(math.max(pitch, 0.05)), range))
+  end
+
   -- and the same formula pays TRAINER knockouts under FULL, with the
   -- wild/trainer 1.5 that a catch never sees (a caught Pokemon is always
   -- wild, which is why the catch numbers above are untouched by it)
@@ -6336,6 +6933,49 @@ end)()
 
   -- the row answers the mode, and OFF answers false
   T.eq(LetsGo.mode(), false, "LET'S GO defaults to OFF")
+
+  -- The capture's buttons are read on the LOGIC STEP, through the engine's
+  -- input.step seam, because edges do not survive the render clock (see
+  -- CatchThrow.buttons). The hook calls it under pcall, so a rename would
+  -- be swallowed silently and B would simply stop working -- which is
+  -- exactly the failure it was written to fix. Assert the name exists, and
+  -- that it is harmless with no session, since it runs every single step.
+  do
+    local CatchThrow = lib.require("CatchThrow")
+    T.eq(type(CatchThrow.buttons), "function",
+      "the capture reads its buttons on the logic step, by name")
+    local q = { "a", "b" }
+    CatchThrow.buttons({ input = { pressQueue = q } })
+    T.eq(#q, 2, "and with no session in flight it takes nothing and does nothing")
+  end
+
+  -- ------- the scripted catch tutorials are none of LET'S GO's business
+  --
+  -- The VIRIDIAN CITY old man and Yellow's PROF.OAK / PIKACHU intro are
+  -- the same makeOldManDemo cutscene: the cursor, the bag and the throw
+  -- are all scripted, and nobody keeps the Pokemon. Every rung has to
+  -- leave them exactly as the engine plays them.
+  T.eq(LetsGo.scripted({ demo = true }), true,
+    "the old man's tutorial is a scripted battle")
+  T.eq(LetsGo.scripted({ demo = true, oakDemo = true }), true,
+    "and so is PROF.OAK catching the PIKACHU")
+  T.eq(LetsGo.scripted({ kind = "wild" }), false,
+    "an ordinary wild encounter is not")
+  T.eq(LetsGo.scripted(nil), false, "and no battle at all is not either")
+  do
+    -- the predicates that gate every FULL behaviour, read at FULL
+    local realMode = LetsGo.mode
+    LetsGo.mode = function() return "full" end
+    T.eq(LetsGo.fullWild({ kind = "wild" }), true,
+      "FULL owns an ordinary wild encounter")
+    T.eq(LetsGo.fullWild({ kind = "wild", demo = true }), false,
+      "but never the old man's demo, whatever the row says")
+    T.eq(LetsGo.fullWild({ kind = "wild", oakDemo = true }), false,
+      "nor PROF.OAK's")
+    T.eq(LetsGo.wantsMinigame({ kind = "wild", demo = true }), false,
+      "and a scripted throw is never handed the minigame")
+    LetsGo.mode = realMode
+  end
 
   -- the ball: a full open-drop-rock-click life without a GPU
   T.eq(Mat4.rotateZ ~= nil, true, "Mat4 grew the roll the wobble rocks on")

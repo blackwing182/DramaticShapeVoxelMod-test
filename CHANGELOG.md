@@ -1,5 +1,92 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **SHINY POKEMON.** On by default, with no row to switch it off:
+  shininess is a property of a Pokemon, not a display mode, and one that
+  differed between two players' saves would be a setting rather than a
+  Pokemon.
+
+  **It was always there.** Gen 1 has no shininess of its own, but it has
+  the four DVs Gen 2 later reads to decide it, and the engine already
+  ships that reading (`src/pokemon/Stats.lua`, `isShiny` -- its own
+  comment calls it "the RBY virtual shiny"). So nothing new is stored on
+  a Pokemon and nothing migrates: every save ever made already contains
+  the answer, and this release starts drawing it. A mon is shiny when
+  Defense, Speed and Special are all exactly 10 and Attack is one of
+  2/3/6/7/10/11/14/15 -- which random DVs land on 1 time in 8192, the
+  classic rate, and the default the odds dial ships at. Deriving rather
+  than storing is what makes it survive a save, a box, a trade and an
+  evolution without a second copy of the truth to drift out of step; a
+  shiny Bulbasaur is a shiny Venusaur without being told. `mon.shiny` is
+  maintained as a cache beside it, written from the DVs and never read
+  as the source.
+
+  The roll happens in `Pokemon.new`, which is where every wild, gift,
+  starter and traded mon is built -- before the battle bakes its sprite,
+  which `battle.started` is already too late for. It draws from the mod's
+  OWN random stream rather than the game's, so installing this does not
+  shift the sequence every damage roll and encounter slot comes out of.
+  Trainers' Pokemon come out ordinary by themselves, because the engine
+  pins their DVs to a fixed set -- which is also what the real games do.
+
+  **The models are genuinely recoloured**, not tinted. The recolour runs
+  as part of the Stadium extraction: each species' textures are decoded
+  once, packed as usual, then recoloured and packed again beside it as
+  `NNNs.dsm`. The colours are Stadium's own -- it slides a model in HSL
+  rather than shipping second textures, a hue rotation in degrees plus
+  saturation and lightness on a quantized -8..+8 scale at 12.5% a step --
+  and all 151 sets of values are shipped in `data/shiny_colors.lua`.
+  Five species get an explicit colour table instead, because Stadium
+  gives THEM a real alternate texture and no single slide can reproduce
+  it: Clefairy, Clefable, Jigglypuff, Wigglytuff and Gyarados, whose
+  bodies must stay put while a small region rotates a long way.
+  Generated effect frames -- flames, beams, sparks -- are excluded, so a
+  shiny Charizard has a shiny hide and an ordinary fire.
+
+  Doing this at extraction rather than at load is what makes that
+  exclusion exact: `StadiumFx` marks its generated frames and the packer
+  drops the marker, so extraction is the last moment a flame is
+  distinguishable from a hide. The normal packs come out byte-identical
+  either way -- the shiny pass runs after they are written -- so
+  `tests/stadium_extract_test.lua` still diffs all 151 against the Python
+  oracle unchanged, and the format did not move. The install marker's REV
+  goes to 3 so an existing cache rebuilds rather than quietly showing
+  every shiny in its ordinary colours.
+
+  **Flat art is tinted** rather than recoloured, because the engine bakes
+  a species palette into an image cache that has no idea which individual
+  is being drawn. The tint is derived from that species' own shiny slide,
+  so a shiny Golbat leans green and a shiny Charizard goes dusky. On the
+  3D path each side is tinted separately, which is the only place the two
+  sides can differ. A multiply can only darken, so species whose shiny is
+  LIGHTER than their normal read quieter on the flat art than on the
+  model.
+
+  **A sparkle** on arrival: a ring of additive stars that springs from
+  the mon's chest and fades over three quarters of a second, armed on the
+  frame a side's occupant changes -- which covers a send-out, a switch
+  and a wild foe alike. A wild Pokemon never grows out of a ball, so the
+  grow was the wrong edge to hang it on.
+
+  **A star on the status page**, beside the level on page 1, drawn in the
+  engine's own pixel grid so it is palette-processed like every other
+  pixel rather than floating over the finished frame. Page 1 only: page 2
+  clears that block itself.
+
+  **SHINY ODDS**, on the DRAMATIC SHAPE menu itself rather than in one of
+  its four categories -- those are the diorama, the fights, what the look
+  costs and the headset, and an encounter rate is none of them. The row
+  reads `1:8192` and halves down to `1:1`, so every rung is exactly twice
+  as often as the one above it, and `1:8192` is both the default and the
+  fallback for an unreadable options file: the mod's default is the games'
+  own rate, not a buff. The number is the truth rather than an
+  approximation of it, because a missed roll also clears a mon that landed
+  on the pattern by luck -- without that, every setting would be itself
+  and 1/8192 in parallel, and no setting could ever be rarer than 8192.
+
 ## 1.8.0
 
 ### Added
@@ -42,6 +129,20 @@
   EXCELLENT, which multiplies the engine's own Gen 1 catch roll; the
   shakes the roll answers are the rocks the ball plays on the ground.
 
+  **Running out, and staying out of the way.** Under FULL an empty bag
+  does not hand the fight back to the classic menu -- there is no fight to
+  hand back, since a Let's Go wild has no Pokemon of yours in it and a foe
+  that never takes a turn, so that menu would offer a FIGHT that cannot
+  happen. The encounter keeps its own screen: the seat holds, the Pokemon
+  stands there, the readout says NO BALLS LEFT, and RUN is the way out.
+  Throwing your last ball lands in the same place rather than ending the
+  session. And the scripted catch tutorials -- the VIRIDIAN CITY old man,
+  and Yellow's PROF.OAK catching the PIKACHU -- are left alone at every
+  rung: they are cutscenes wearing a battle's clothes, where the cursor,
+  the bag and the throw are all scripted and nobody keeps the Pokemon, so
+  they play exactly as the original does with no capture screen, no held
+  camera and no experience.
+
   **What it stands on.** The outcome is exactly a Gen 1 ball throw: same
   catch math (status, HP and ball factors intact), same outcome texts,
   same caught flow -- dex page, nickname, box overflow -- and a missed
@@ -49,6 +150,200 @@
   turn it always did. Needs the staged 3D battle standing (3D-BTL on, a
   depth-capable driver, no headset); anywhere it cannot stand, balls
   quietly take the engine's classic toss.
+
+- **SHADOWS: a row that stands the sun's pass down.** Cast shadows are the
+  most expensive thing the mode draws after the geometry -- the whole world
+  rendered a second time from the light, every time the view or anybody in
+  it moves -- and on a phone or an old laptop that is the difference between
+  the diorama running and the diorama stuttering. ON by default, because a
+  world where a building throws nothing reads as flat however many voxels it
+  is made of. OFF means off rather than "fall back": the flat decal drop
+  shadows are the stand-in for a machine that WANTED shadows and could not
+  have them, so they stay down too, and the forest's light shafts go with
+  them (the beams are lit by the sun's own map). FULL neither sets the row
+  nor takes it away, on the same reasoning as AA -- what the look costs is
+  the player's question, not a preset's.
+
+### Added
+
+- **SELECT on any row of the mod's menus explains what it does.** Every
+  setting here has carried a paragraph of help since it was written -- it is
+  handed to the mod manager with the rest of the schema -- and nothing in the
+  engine has ever drawn one. It could not: a row is a label and a value, and
+  no options row anywhere has room for a third thing. So a row says what it
+  IS on one line and what it is SET TO on the next, and SELECT says what that
+  MEANS, which is the question RENDER DIST or 2D-3D B cannot answer in
+  eighteen characters however the label is worded.
+
+  It opens the game's own dialogue box -- drawn with the ROM's own border
+  glyphs, anchored to the bottom of the screen where this game has always put
+  text, and only as tall as the sentence it holds, so the row being asked
+  about is still visible above it. A, B, START and SELECT all close it, SELECT
+  included: it is the button somebody who just pressed it will reach for. The
+  bottom line of every one of the mod's menus now reads `B BACK  SEL HELP`,
+  because a binding nobody knows about is worth nothing.
+
+  Every description is ONE SENTENCE, and the whole of it is on screen at once.
+  The long paragraphs these grew from were written for a reader that never
+  existed, and they read as documentation rather than as an answer; a box you
+  have to scroll is a worse reply to "what does this do" than a shorter
+  sentence is. Both properties are tested rather than trusted -- a description
+  that gains a second sentence, or that outgrows its box, fails the suite.
+  VOXEL, T-SHIFT and STADIUM ROM got sentences of their own to go with the
+  thirteen settings: the first two are the engine's row descriptors with
+  nowhere to keep one, and the third is an action rather than a setting.
+
+  The suite also checks every character of every description against the ROM's
+  real charmap, because Font.encode answers a glyph it does not have with a
+  SPACE and a one-time console warning -- so a curly quote pasted in from
+  somewhere would blank a word on screen and say nothing about it.
+
+### Changed
+
+- **The settings live on menus of their own now, behind one red row at the
+  top of OPTIONS.** This mod had grown to fourteen rows on the engine's
+  list, spliced in as one block. OPTIONS shows four boxes at a time, so that
+  was four screens of scrolling inside a list that already carried twenty
+  engine rows, and finding SHADOWS meant knowing it was in there somewhere
+  past the wireframe and the horizon bend.
+
+  What is on OPTIONS now is `DRAMATIC SHAPE..`, and it leads the list --
+  a mod that replaces the look of the whole game should not make the player
+  scroll to find out where its settings went, least of all past the engine
+  rows it has quietly taken away. It opens VOXEL and T-SHIFT, which came off
+  the engine's list with it, and four categories: **3D WORLD** (V-GRID,
+  V-CURVE, RENDER DIST, WATER, DAYTIME), **BATTLES** (3D-BTL, BACK SPRITES,
+  LET'S GO), **PERFORMANCE** (FOREST FX, SHADOWS, AA) and **VR** (VR,
+  SMOOTH TURN). STADIUM ROM stays on that top-level menu, last: it is
+  one-time setup rather than a setting, and somebody who has been told to
+  import a cartridge should find the row where the mod begins, not two
+  levels down a category they have no reason to open until it has worked.
+
+  The split is not a new opinion: it is the `full` flag each row already
+  carried. `full` marks a row the FULL preset does not take away, and the
+  reason written beside each one was always the same -- this is a question
+  about the HARDWARE, or about the GAME, not a knob on the diorama FULL is a
+  preset for. So 3D WORLD is exactly the rows FULL owns, and needs no rule
+  to disappear under it: every child filters itself out and an empty category
+  is not offered. Under FULL the menu is four rows on one screen with no
+  scroll arrow. The same rule retires VR where there is no VR to have.
+
+  **Nothing you had set has moved.** Every setting keeps its stored key, its
+  ladder and its row id, so `options.lua` is byte-identical across the
+  upgrade for a player who changes nothing -- and the hotkeys are untouched,
+  which is what makes the nesting affordable: 3, 5, 6, 7, 8 and 9 still put
+  every buried row one keypress away. The mod manager's own page still lists
+  all thirteen settings flat, now in category order.
+
+  The row is drawn in red, which is a palette zone rather than a color:
+  `setColor` cannot tint this text, because the glyph atlas is black ink and
+  LOVE tints multiplicatively, and because the palette shader keys on the red
+  channel alone and would send a red pixel to the lightest slot. What the
+  zone changes is which color the shade the text was drawn in comes out as.
+  It is MEWMON -- the palette the OPTIONS menu already wears -- copied with
+  only the ink slot replaced, so the paper under the row is the same white as
+  the row above it in all three ROMs, and the band covers the two text lines
+  alone rather than the cursor and the box borders beside them. SGB INV
+  reverses a palette, so there the red starts in the other slot and still
+  lands on the ink; OG, OG INV and CLASSIC substitute their own tables
+  outright, and the row simply draws monochrome, which is what asking for a
+  screen with no colors in it should get.
+
+### Fixed
+
+- **A setting that pins another one now pins it from wherever it was
+  changed.** 3D-BTL holds BATTLE LAYOUT at OG while a fight can be staged on
+  the map, and FULL holds DAYTIME at SYNC while it owns that row. Both pins
+  used to be a side effect of the options-rows hook, which every step on the
+  OPTIONS menu happened to rerun -- so they fired whether or not the step was
+  the one that mattered, and nothing had to name them. A step made on the
+  mod's own menus reruns no hook, so the pinning is a function now, and the
+  hook, the menus and the mod manager's page all ask for it.
+
+- **An open OPTIONS menu notices a change made on a menu pushed over it.**
+  The rebuild that keeps the row list honest compared the voxel level and the
+  two battle switches across one call of `update`. The stack ticks its top
+  state only, so a step taken on one of the mod's own menus happens while
+  OPTIONS is suspended: both halves of that comparison were read after the
+  fact and always agreed, and OPTIONS came back still showing a BATTLE LAYOUT
+  row that no longer belonged there. The signature is held on the menu and
+  stamped where the rows are built, which is the thing it is a signature of.
+
+- **A building's back no longer wears its own front door.** Every voxelized
+  building is its drawing extruded straight through the footprint, so the
+  far wall is the facade again -- and read from behind, the facade mirrored:
+  a door on the back of every house, a POKe sign readable backwards on
+  every Center, MART on every mart and GYM painted across the back of every
+  gym. Those tiles are now named per tileset (`frontOnly` in
+  `data/voxel_heights.lua` -- the doorways, the hanging shop signs and the
+  gyms' lettering) and every cell wearing one takes the art of the nearest
+  ordinary cell beside it in the same tile row instead. The donor is picked
+  per RUN, so a two-tile doorway comes out as two tiles of the same wall
+  rather than borrowing left from one side and right from the other, and
+  between the two neighbours the one that row uses more often wins -- which
+  is what reaches past a gable's sloped corner for the wall behind it. At
+  the base course the donor lifts one row with the model, because the
+  drawing's last row is the black threshold a door stands on and the wall
+  beside it does not paint; without that the doorway kept its own foot and
+  the back's bottom course had a notch in it. Windows are deliberately left
+  alone: a back wall with windows is right. The generic volume path folds
+  the same drawing up all four sides and had the same bug on its back AND
+  its flanks, so it takes the same substitution -- only the south face,
+  which IS the drawing, keeps every tile of it.
+
+- **B now actually runs from capture mode -- and A throws, and L/R switch
+  balls.** The capture session read its button presses on the RENDER clock,
+  along with everything else it does per frame. Button edges do not survive
+  there: the engine rebuilds the edge table once per fixed logic step and
+  runs all of a frame's steps BEFORE the render-clock hooks, so any frame
+  carrying more than one step had already thrown the press away before
+  anything looked at it. That is not a rare race -- it is every press below
+  60fps, which is exactly where a 3D battle lives, so these buttons were
+  reliably dead on the machines that most needed them and fine on a 144Hz
+  one. They are read on the logic step now, through the engine's own
+  input.step seam, and taken rather than peeked so a press the capture used
+  does not also page the message it just queued.
+
+- **No more grass smeared across the top of a LET'S GO throw.** The capture
+  seat handed BattleScene its pitch as the DEPRESSION below level, and the
+  one thing that reads it -- the camera-ward pull the grass and flowers are
+  drawn with -- measures angles off STRAIGHT DOWN, the complement. So a seat
+  looking nearly level read as the top-down end of the ladder, where the pull
+  is longest: 46 world pixels of bias, handed to a camera standing 46 world
+  pixels behind the player. The pull is a shove along each vertex's own eye
+  ray -- a pure depth bias while it is shorter than the range, and past that
+  it carries geometry THROUGH the lens, where the projection turns inside out
+  and a single tuft at the eye lands smeared across the frame. That was the
+  greenery hanging over the top of a capture shot on any route or street with
+  grass rows beside it. The seat now speaks the same convention the battle's
+  own rig does, and the vertex stage clamps the pull to half the range to the
+  eye besides -- so no camera standing this close can be smeared by a bias
+  again, in a capture, a fight, or first person.
+
+- **The grass moves during a staged battle.** The wind is switched on around
+  the free-roam pass's grass draws and off again after them, and the battle
+  pass -- which draws the same tufts, on the same map, from its own camera --
+  never switched it on: the uniform sat at the per-frame default, which means
+  no wind, so a field that was moving one frame before the encounter went dead
+  still for the whole fight and started again when it ended. A fight is staged
+  on the MAP, in that place's own weather and light; a frozen field was the one
+  thing reading as a photograph of it rather than the place. No walker-contact
+  push comes with it -- that is somebody stepping through the grass, and the
+  two mons stand still on their own tiles.
+
+- **The bottom of the frame no longer bites a row out of the scenery.**
+  RENDER DIST cut the world to where the frame's rays land on the GROUND,
+  and the ground is not what the picture is made of: a tree at the bottom of
+  the screen has its feet south of the row its top is seen on, because the
+  bottom edge's ray is still coming down as it passes them. The cut is by
+  column -- deliberately, so it never takes the tops off trees -- so a tree
+  whose base fell one pixel outside lost its whole height at once, and the
+  last row of forest along the bottom of the frame was cut through with the
+  ground behind it showing. The south edge is now walked back down that same
+  ray by the tallest thing that can stand on it (about a tile and a half at
+  35 degrees, four tiles at 50, eleven at 75), plus a tile of slack so a hard
+  edge is never decided by a rounding. FIT carries it too: it is a correction
+  to the honest answer, not margin around it.
 
 ## 1.7.1
 

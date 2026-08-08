@@ -598,6 +598,11 @@ end
 function OverworldBattle.update(dt)
   if not session then return end
 
+  -- the shiny arrival sparkle's clock. Ticked here rather than in the draw
+  -- because a paused or covered frame still draws, and a burst that
+  -- advanced on draws would stall behind a text box mid-twinkle.
+  pcall(function() V.require("ShinyFx").update(dt) end)
+
   local g = game()
   local top = g and g.stack and g.stack:top()
   local ow = g and g.overworld
@@ -1014,6 +1019,16 @@ OverworldBattle.TEX_AX, OverworldBattle.TEX_AY = TEX_AX, TEX_AY
 -- Which side is being rendered, or nil. The placement wrappers read it.
 local texturing = nil
 
+-- Which side is being rendered into its own canvas right now, or nil.
+--
+-- Exposed because the shiny tint has two applications -- per side here, and
+-- both-sides-at-once on the flat path (ShinyUI.installBattlePics) -- and
+-- exactly one of them must run per draw. Asking this is what keeps them
+-- from stacking, rather than relying on which module installed first.
+function OverworldBattle.texturingSide()
+  return texturing
+end
+
 local texCanvas = {}
 local innerPics = nil                   -- captured by install()
 local innerHUDs = nil                   -- likewise, for the snapped HUD layer
@@ -1086,12 +1101,43 @@ function OverworldBattle.sideTexture(battle, side)
   for k, v in pairs(OFF[side]) do saved[k] = battle[k]; battle[k] = v end
   texturing = side
 
+  -- A SHINY on this side, tinted here rather than in ShinyUI's flat-path
+  -- wrap. This is the one place a pic is rendered for ONE side at a time,
+  -- so it is the only place the two sides can be tinted differently -- a
+  -- shiny facing an ordinary mon gets its own colour and leaves the other
+  -- alone, which the engine's both-sides-at-once pic layer cannot do.
+  local shinyTint = nil
+  do
+    -- NOT when this side is showing a PERSON. Both sides can be holding a
+    -- trainer pic rather than a Pokemon -- the foe's portrait before the
+    -- send-out, and the player's own back until "Go!" -- and a shiny is a
+    -- fact about a Pokemon, not about its owner. Tinting through it turned
+    -- the player's trainer sprite a different colour for the whole intro,
+    -- which is what a shiny Pokemon in the party looks like if you do not
+    -- ask this question. The two tests are the same ones sideTexture already
+    -- uses to label the finished texture, asked here instead of after.
+    local person = (side == "enemy"
+                    and battle.showEnemyTrainer and battle.trainerPic)
+                or (side == "player"
+                    and battle.showPlayerBack and battle.playerBackPic)
+    if not person then
+      local battler = (side == "player") and battle.player or battle.enemy
+      local g2 = game()
+      shinyTint = battler and V.require("ShinyUI")
+                  .tintFor(battler.mon, g2 and g2.data) or nil
+    end
+  end
+
   local ok, err = pcall(function()
     g.setCanvas(canvas)
     g.clear(0, 0, 0, 0)
     g.setBlendMode("alpha")
     g.setColor(1, 1, 1, 1)
-    innerPics(battle, 0, 0, 0)
+    if shinyTint then
+      V.require("ShinyUI").withTint(shinyTint, innerPics, battle, 0, 0, 0)
+    else
+      innerPics(battle, 0, 0, 0)
+    end
   end)
 
   texturing = nil
