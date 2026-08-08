@@ -2004,7 +2004,9 @@ local function stairCell(S, map, data, cx, cy, s)
   local atlasW = map.tileset.imageWidth or 128
   local atlasH = map.tileset.imageHeight or 48
   local quads = S.objectQuads
-  local down = s.class == "stair_down_e" or s.class == "stair_down_w"
+  local north = s.class == "stair_down_n"
+  local down = north or s.class == "stair_down_e"
+             or s.class == "stair_down_w"
   local east = s.class == "stair_e" or s.class == "stair_down_e"
   local mx, mz = cx * 16, cy * 16
   local h = s.h or 16
@@ -2051,6 +2053,90 @@ local function stairCell(S, map, data, cx, cy, s)
         end
       end
     end
+  end
+
+  -- A flight running INTO the map instead of across it.  The drawing is
+  -- the same staircase seen head-on rather than from the side, and that
+  -- changes which axis of the art means what: a drawn ROW is a step here,
+  -- and -- because looking down a well is looking along its depth -- drawn
+  -- row IS depth row, 1:1 across the cell's 16.
+  --
+  -- The Centers' steps state their own band table and it lands exactly:
+  -- 4 white rows, 1 black, 3 grey, 1 black, 3 checker, 4 black = 16.  So
+  -- an even four-step division puts a black NOSING on the southmost row of
+  -- every band (15, 11, 7, 3) and leaves the rows behind it as that step's
+  -- tread.  Nothing is authored but the RISE, which no head-on drawing can
+  -- state; the depths, the treads and the nosings are all measured.
+  --
+  -- A nosing is drawn as one row because it is seen nearly edge-on, so
+  -- un-projected it has real height and no depth: its row lies flat as the
+  -- tread's front lip AND stands as the riser under it.  That is the one
+  -- texel in the flight used twice, and using it twice is what a nosing is.
+  --
+  -- The well's own walls come free as well: the drawing's first and last
+  -- COLUMNS are its black side walls, and its top band is the darkness the
+  -- flight leaves by, which is what the far end wants to wear.
+  --
+  -- Every quad here is split at the cell's own 8px seam, in x and in rows
+  -- both: `uv` resolves ONE tile per corner, and these four tiles are not
+  -- neighbours in the atlas, so a quad that spans a seam interpolates
+  -- between two unrelated corners of the sheet.
+  if north then
+    local runD = 16 / STAIR_STEPS
+    local HALVES = { { 0.2, 7.9, 0, 8 }, { 8.1, 15.8, 8, 16 } }
+    for i = 0, STAIR_STEPS - 1 do
+      local a0 = 16 - (i + 1) * runD           -- band i, in art rows
+      local a1 = a0 + runD
+      local yTop = -(i + 1) * rise
+      local z0b, z1b = mz + a0, mz + a1
+
+      for _, H in ipairs(HALVES) do
+        local ax0, ax1, wx0, wx1 = H[1], H[2], mx + H[3], mx + H[4]
+
+        -- the tread: the whole band, drawn row = depth row, so the nosing
+        -- lies on its front lip exactly where the artist drew it
+        face({ wx0, yTop, z0b }, { wx1, yTop, z0b },
+             { wx1, yTop, z1b }, { wx0, yTop, z1b },
+             ax0, a1, ax1, a0, STAIR_SHADE.wellTread)
+
+        -- the riser under that lip.  It faces NORTH -- a flight descending
+        -- away from you turns its risers away with it, and they close the
+        -- steps from below rather than being looked at.  One art row tall,
+        -- so it needs none of `banded`'s row splitting; written straight
+        -- keeps the geometry flush at the seam while the art stays inside
+        -- its tile
+        local ry = -i * rise
+        face({ wx1, yTop, z1b }, { wx0, yTop, z1b },
+             { wx0, ry, z1b }, { wx1, ry, z1b },
+             ax1, a1 - 1, ax0, a1, STAIR_SHADE.riser)
+
+        -- the deep end, closing the opening this flight is cut into: from
+        -- the floor of the well up to the top of the wall band beside it,
+        -- in the drawing's own black top rows
+        if i == STAIR_STEPS - 1 then
+          face({ wx1, -h, mz }, { wx0, -h, mz },
+               { wx0, h, mz }, { wx1, h, mz },
+               ax1, 3.9, ax0, 0.1, STAIR_SHADE.wellEnd)
+        end
+      end
+
+      -- the well's side walls above this tread, wearing the drawing's own
+      -- black edge columns -- the excavation is walled in its own texels
+      local function sideWall(px, sx0, sx1, inward)
+        local c
+        if inward then                                  -- west wall, faces E
+          c = { { px, yTop, z1b }, { px, yTop, z0b },
+                { px, 0, z0b }, { px, 0, z1b } }
+        else                                            -- east wall, faces W
+          c = { { px, yTop, z0b }, { px, yTop, z1b },
+                { px, 0, z1b }, { px, 0, z0b } }
+        end
+        face(c[1], c[2], c[3], c[4], sx0, a1, sx1, a0, STAIR_SHADE.wellN)
+      end
+      sideWall(mx, 0.1, 1.3, true)
+      sideWall(mx + 16, 14.7, 15.9, false)
+    end
+    return
   end
 
   for i = 0, STAIR_STEPS - 1 do
@@ -2152,6 +2238,7 @@ function Structures.buildStairs(S, map, x0, x1, y0, y1)
         -- box or floor it.  A rising flight stands on the map's common
         -- floor; a stairwell IS the hole, so nothing is painted under it
         local down = s.class == "stair_down_e" or s.class == "stair_down_w"
+                  or s.class == "stair_down_n"
         for dy = 0, 1 do
           for dx = 0, 1 do
             local tk = keyOf(cx * 2 + dx, cy * 2 + dy)

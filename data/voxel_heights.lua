@@ -890,9 +890,8 @@ return {
     -- which has a PERSON drawn into the tile art -- becomes a monolith
     -- wearing his face.
     POKECENTER = {
-      -- the wall band stays one 16px face: striped panels (40), the high
-      -- windows (92-95; 94 doubles as the map's warp tile, and pins are
-      -- look-only), the pokeball poster (2/3/18/19), and the pillars
+      -- the wall band stays one 16px face: striped panels (40), the
+      -- pokeball poster (2/3/18/19), and the pillars
       -- (16/41) with their bases (4/5/20/21; 20 is the $14 water-fallback
       -- trap and would recess into a pond lip).  The healing machines'
       -- console face (76/77) and button panel (6/22) are ALSO wall:
@@ -905,7 +904,30 @@ return {
       -- void rule flattens them.  What is NOT wall is the machines'
       -- two flanks -- see `prop` below.
       wall = { 2, 3, 4, 5, 6, 16, 18, 19, 20, 21, 22, 40, 41,
-               76, 77, 92, 93, 94, 95 },
+               76, 77 },
+      -- THE CABLE CLUB STEPS, cut into the back wall at cells (10,0) and
+      -- (12,0) of every Center -- a flight going DOWN, away from the room,
+      -- and the reason `stair_down_n` exists at all: the profile's other
+      -- stairs run east or west and are drawn from the SIDE, where a drawn
+      -- column is a step; these are drawn HEAD-ON, where a drawn row is,
+      -- and no rotation of the east/west reading produces that.
+      --
+      -- The drawing is its own band table, and it lands exactly on an even
+      -- four-step division of the cell: 4 white rows (the near tread), a
+      -- black nosing, 3 grey, a nosing, 3 checker, then 4 black rows -- the
+      -- dark the flight leaves into, which is also what the far end wall
+      -- wears.  Its first and last COLUMNS are the well's black side walls.
+      -- Drawn row = depth row throughout; the rise is the only number the
+      -- head-on view cannot state, and it takes the class height over the
+      -- four steps like every other flight here.
+      --
+      -- Pinned as one cell (the class resolves off the top-left tile) but
+      -- all four ids carry it, and the scan says they cannot reach anything
+      -- else: 22 placements, exactly the two cells in each of the eleven
+      -- Centers, and the Celadon Hotel on the same id places none of them.
+      -- 94 is also the map's warp tile; pins are look-only, so the warp is
+      -- untouched and the steps stay walk-through.
+      stair_down_n = { 92, 93, 94, 95 },
       -- the counters, half a cell high: top band (8) and the one cell of
       -- it that carries the push bell (10, lifted off as a figure below --
       -- the pin stays as the degradation path), front face (24/25, the
@@ -3070,6 +3092,36 @@ return {
     PLATEAU = { 11, 12, 27, 28 },
     -- the Safari Zone gate's double door, 42/43 over 58/59.
     FOREST = { 42, 43, 58, 59 },
+  },
+
+  -- THE DOOR A GATE HOUSE IS ENTERED BY FROM ANY SIDE BUT THE SOUTH.
+  --
+  -- A route gate is walked THROUGH, so it has an opening on two opposite
+  -- sides -- and the drawing can only show one of them.  The overworld
+  -- sprite is a facade seen face-on with a roof laid over it, so a south
+  -- entrance is drawn (a doorway block in the facade's last rows, folded up
+  -- by lib/Structures.lua) and a north, east or west one is drawn as
+  -- NOTHING: the warp sits on the ground cell outside, the art beside it is
+  -- plain wall, and top-down that reads fine because you never see the
+  -- wall.  In 3D you walk straight into a blank slab.
+  --
+  -- So the door is put back, on the face the player walks into.  This names
+  -- only the ART -- one 16x16 cell of the tileset's own doorway block, rows
+  -- north-first, the same ids `frontOnly` above lists as facade-only.
+  -- WHERE it goes is not authored at all: lib/Buildings.lua reads it off
+  -- the map, from the warps that land in a gate and the building standing
+  -- against them (see `sideDoors` there), because the map already states it
+  -- and a hand list of thirty-odd coordinates would only be a chance to get
+  -- one wrong.
+  --
+  -- OVERWORLD is the whole table because every such entrance in the game
+  -- stands against an OVERWORLD building: the Safari Zone's north gate is a
+  -- gap between two fence stubs with no drawing to carve, and the Route 22
+  -- league gate on ROUTE_23 puts its warps on the road THROUGH the arch
+  -- rather than against a wall.  Both come out with no door, which is what
+  -- they always had.
+  sideDoors = {
+    OVERWORLD = { { 11, 12 }, { 27, 28 } },
   },
 
   -- Buildings whose whole sprite is voxelized band by band (lib/Buildings.lua,

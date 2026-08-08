@@ -125,6 +125,12 @@ local FALLBACK_HEIGHTS = {
   stair_w = 16,
   stair_down_e = 16,
   stair_down_w = 16,
+  -- a stairwell descending toward the BACK of the map, drawn head-on
+  -- instead of from the side (the Centers' Cable Club steps).  Its own
+  -- class because the art reading is not the east/west one turned: there
+  -- a drawn COLUMN is a step and a drawn row is height, here a drawn ROW
+  -- is a step and drawn row = depth row, 1:1 down the well
+  stair_down_n = 16,
 }
 
 -- class -> how the mesher draws it (see the header). The last three are
@@ -215,6 +221,7 @@ local ART = {
   stair_w = "stair",
   stair_down_e = "stair",
   stair_down_w = "stair",
+  stair_down_n = "stair",
 }
 
 local spec = nil          -- the loaded data file, or false when absent
