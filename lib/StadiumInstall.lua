@@ -61,7 +61,14 @@ StadiumInstall.FORMAT = "DSM3"
 -- is the hermite-animation decode fix: the five keyframe species (Pidgeot,
 -- Dodrio, Exeggutor, Tangela, Magmar) come out garbled or bind-posed from
 -- any rev-1 build.
-StadiumInstall.REV = 2
+--
+-- Rev 3 adds the shiny variants (NNNs.dsm). The normal packs are unchanged
+-- byte for byte, so this is exactly the case REV exists for and not a FORMAT
+-- bump: nothing about DSM3 moved, there is simply a second file per species
+-- that a rev-2 cache does not have. Without the bump a player who already
+-- installed would keep a complete-looking cache with no shiny models in it,
+-- and every shiny they met would silently show its normal colours.
+StadiumInstall.REV = 3
 
 StadiumInstall.COUNT = 151
 
@@ -211,12 +218,34 @@ local status = { state = "idle", done = 0, total = StadiumInstall.COUNT }
 
 StadiumInstall.status = status
 
-local function writePack(species, bytes)
+-- The shiny variant rides beside its species as NNNs.dsm.
+--
+-- A separate FILE rather than a second block inside NNN.dsm, and that is a
+-- deliberate trade. A second block would mean a new magic (DSM4), the same
+-- change mirrored into tools/stadium_pack.py, a regenerated oracle and a
+-- re-run of the 34MB byte diff -- the project's central safety net disturbed
+-- for a feature that does not need the format to move at all. As its own
+-- file it is the SAME DSM3 a normal pack is, written by the same writer and
+-- read by the same reader, and the 151 normal packs stay byte-identical.
+--
+-- A species with no shiny variant simply has no NNNs.dsm, and StadiumPack
+-- falls back to the normal model. That is also what a half-finished install
+-- looks like, which is the behaviour we want from one.
+local function writePack(species, bytes, shinyBytes)
   local f = fs()
   if not f then return false, "no filesystem" end
   local ok, err = f.write(("%s/%03d.dsm"):format(StadiumInstall.DIR, species),
                           bytes)
   if not ok then return false, tostring(err) end
+  if shinyBytes then
+    -- A failed shiny write is not a failed install: the species still has
+    -- its model. Left unwritten, the runtime shows the normal one.
+    local sok, serr = f.write(
+      ("%s/%03ds.dsm"):format(StadiumInstall.DIR, species), shinyBytes)
+    if not sok and V.mod and V.mod.log then
+      V.mod.log.warn("shiny pack %03d not written: %s", species, tostring(serr))
+    end
+  end
   return true
 end
 

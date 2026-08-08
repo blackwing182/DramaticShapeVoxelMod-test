@@ -729,6 +729,12 @@ function BattleScene.render(state, arena, textures, token)
     -- a card wins the depth test the way a nearer thing should
     local cap = BattleScene.capture
     if cap and cap.draw then pcall(cap.draw, BattleBillboard.PULL) end
+    -- and a shiny's arrival sparkle, last of the three so its stars add
+    -- over the mon they belong to rather than under it, and still inside
+    -- the flash window so a burst during a hit is lit like everything else
+    pcall(function()
+      V.require("ShinyFx").draw(arena, groundY, BattleBillboard.PULL)
+    end)
     if flashing then Voxel3D.flatten(nil) end
     -- grass and flowers ride the same camera-ward pull the free-roam pass
     -- gives them, measured against THIS camera's pitch rather than the

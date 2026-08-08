@@ -1,5 +1,81 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **SHINY POKEMON.** On by default, with no row to switch it off:
+  shininess is a property of a Pokemon, not a display mode, and one that
+  differed between two players' saves would be a setting rather than a
+  Pokemon.
+
+  **It was always there.** Gen 1 has no shininess of its own, but it has
+  the four DVs Gen 2 later reads to decide it, and the engine already
+  ships that reading (`src/pokemon/Stats.lua`, `isShiny` -- its own
+  comment calls it "the RBY virtual shiny"). So nothing new is stored on
+  a Pokemon and nothing migrates: every save ever made already contains
+  the answer, and this release starts drawing it. A mon is shiny when
+  Defense, Speed and Special are all exactly 10 and Attack is one of
+  2/3/6/7/10/11/14/15 -- which random DVs land on 1 time in 8192, the
+  classic rate, and the default the odds dial ships at. Deriving rather
+  than storing is what makes it survive a save, a box, a trade and an
+  evolution without a second copy of the truth to drift out of step; a
+  shiny Bulbasaur is a shiny Venusaur without being told. `mon.shiny` is
+  maintained as a cache beside it, written from the DVs and never read
+  as the source.
+
+  The roll happens in `Pokemon.new`, which is where every wild, gift,
+  starter and traded mon is built -- before the battle bakes its sprite,
+  which `battle.started` is already too late for. It draws from the mod's
+  OWN random stream rather than the game's, so installing this does not
+  shift the sequence every damage roll and encounter slot comes out of.
+  Trainers' Pokemon come out ordinary by themselves, because the engine
+  pins their DVs to a fixed set -- which is also what the real games do.
+
+  **The models are genuinely recoloured**, not tinted. The recolour runs
+  as part of the Stadium extraction: each species' textures are decoded
+  once, packed as usual, then recoloured and packed again beside it as
+  `NNNs.dsm`. The colours are Stadium's own -- it slides a model in HSL
+  rather than shipping second textures, a hue rotation in degrees plus
+  saturation and lightness on a quantized -8..+8 scale at 12.5% a step --
+  and all 151 sets of values are shipped in `data/shiny_colors.lua`.
+  Five species get an explicit colour table instead, because Stadium
+  gives THEM a real alternate texture and no single slide can reproduce
+  it: Clefairy, Clefable, Jigglypuff, Wigglytuff and Gyarados, whose
+  bodies must stay put while a small region rotates a long way.
+  Generated effect frames -- flames, beams, sparks -- are excluded, so a
+  shiny Charizard has a shiny hide and an ordinary fire.
+
+  Doing this at extraction rather than at load is what makes that
+  exclusion exact: `StadiumFx` marks its generated frames and the packer
+  drops the marker, so extraction is the last moment a flame is
+  distinguishable from a hide. The normal packs come out byte-identical
+  either way -- the shiny pass runs after they are written -- so
+  `tests/stadium_extract_test.lua` still diffs all 151 against the Python
+  oracle unchanged, and the format did not move. The install marker's REV
+  goes to 3 so an existing cache rebuilds rather than quietly showing
+  every shiny in its ordinary colours.
+
+  **Flat art is tinted** rather than recoloured, because the engine bakes
+  a species palette into an image cache that has no idea which individual
+  is being drawn. The tint is derived from that species' own shiny slide,
+  so a shiny Golbat leans green and a shiny Charizard goes dusky. On the
+  3D path each side is tinted separately, which is the only place the two
+  sides can differ. A multiply can only darken, so species whose shiny is
+  LIGHTER than their normal read quieter on the flat art than on the
+  model.
+
+  **A sparkle** on arrival: a ring of additive stars that springs from
+  the mon's chest and fades over three quarters of a second, armed on the
+  frame a side's occupant changes -- which covers a send-out, a switch
+  and a wild foe alike. A wild Pokemon never grows out of a ball, so the
+  grow was the wrong edge to hang it on.
+
+  **A star on the status page**, beside the level on page 1, drawn in the
+  engine's own pixel grid so it is palette-processed like every other
+  pixel rather than floating over the finished frame. Page 1 only: page 2
+  clears that block itself.
+
 ## 1.8.0
 
 ### Added
