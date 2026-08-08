@@ -475,40 +475,20 @@ local SETTINGS = {
   { VoxelGrid.setting, "One-pixel wireframe along every voxel edge.",
     cat = "world" },
   { WorldCurve.setting,
-    "Bend the world down over the horizon, Animal Crossing style. 1 is a "
-    .. "hint of roll at the frame edges and 2 is the classic read; 3 is as "
-    .. "far as it goes before the horizon closes over ground you can still "
-    .. "walk into. 4 and 5 are past that on purpose and they are for a "
-    .. "headset's DIORAMA, where the world is a model being looked at "
-    .. "rather than walked around in -- 5 curls it into a half sphere, a "
-    .. "town on top of its own little planet.",
+    "Bends the world down over the horizon, until a town sits on top of its "
+    .. "own little planet.",
     cat = "world" },
   { ViewBox.setting,
-    "How much of the map the camera bothers to draw. FIT is exactly the "
-    .. "ground on screen and no more -- the shape a tilted camera really "
-    .. "frames, which reaches well north of you and flares wide out there, "
-    .. "not the square the flat game shows. So a connected map that falls "
-    .. "entirely outside it is skipped before it is drawn, terrain, water, "
-    .. "grass and shadows together, which is most of the frame's geometry "
-    .. "at the high rungs. Below about 63 degrees that is all the row does "
-    .. "and the picture is untouched. At 75 the camera can see all the way "
-    .. "to the horizon, so something has to name a distance: FIT is the "
-    .. "closest, WIDE through WIDEST push the world's edge further out, "
-    .. "and OFF stops cutting entirely. Not on 1ST or 3RD -- you are "
-    .. "standing in the world there -- and the box opens out and away as "
-    .. "the camera dives in.",
+    "How far out the camera bothers to draw, which only changes the picture "
+    .. "above about 63 degrees where the horizon comes into view.",
     cat = "world" },
   { Water.setting,
-    "Reflections on water. FULL adds screen-space reflections of the "
-    .. "shoreline, the trees and the buildings behind it; SKY is the sky, "
-    .. "the sun and the moon alone, which is most of the look for a "
-    .. "fraction of the cost.",
+    "Reflections on water: SKY is the sun, moon and sky alone, and FULL "
+    .. "adds the shoreline and trees behind it.",
     cat = "world" },
   { DayNight.setting,
-    "What time it is outdoors: pin the sky to DAY, NIGHT, DUSK or DAWN, "
-    .. "let CYCLE run it -- ten minutes of sun, ten of moon, with the "
-    .. "shadows, the sky and the light following -- or SYNC it to the "
-    .. "clock on the wall, so Kanto's evening falls when yours does.",
+    "What time it is outdoors -- pinned to an hour, running on a ten-minute "
+    .. "cycle, or synced to the clock on your wall.",
     cat = "world" },
 
   -- ------- BATTLES -- what a fight is drawn over, and how it is played
@@ -520,45 +500,24 @@ local SETTINGS = {
   -- and forbids back sprites (backPinned answers false), so both rows
   -- decide nothing there and a dead switch on the menu reads as broken.
   { OverworldBattle.setting,
-    "Fight in three dimensions, shot over the shoulder with a slow parallax "
-    .. "drift. 2D-3D stands the game's own battle pics up as cards; STADIUM "
-    .. "replaces them with the Pokemon Stadium battle models, animated, "
-    .. "playing the animation the move being used actually calls for. A "
-    .. "stages the fight on the MAP -- the nearest clear ground, in that "
-    .. "place's own weather and light; B stands it on two discs against the "
-    .. "sky instead, which works everywhere, including the caves and shop "
-    .. "floors that have nowhere to stage a fight. The STADIUM rungs only "
-    .. "appear once the models have been built, and building them needs a "
-    .. "Pokemon Stadium (US) 1.0 ROM of your own -- import it from the "
-    .. "STADIUM ROM row, or drop it in the baseroms folder and restart. No "
-    .. "other version works: the reader is keyed to that one cartridge.",
+    "Fights staged in 3D over your shoulder, on the map or on discs against "
+    .. "the sky, as cards or Stadium's animated models.",
     cat = "battles",
     when = function() return not VR.enabled() end, full = true },
   -- Only offered while a fight can actually be staged on the map: with 3D-BTL
   -- off the engine draws the classic screen, which is this row's ON already,
   -- and a row that no longer decides anything is worse than no row.
   { OverworldBattle.backSetting,
-    "Keep your own Pokemon on the battle menu, seen from behind in its "
-    .. "original slot, instead of standing it on the map facing the foe. "
-    .. "The foe is still out there on its own tile.",
+    "Keeps your own Pokemon on the battle menu, seen from behind, instead "
+    .. "of standing it on the map facing the foe.",
     cat = "battles",
     when = function() return stagedBattles() and not VR.enabled() end,
     full = true },
   -- `full` like the battle rows: this is a GAMEPLAY mode, not a knob on
   -- the diorama, so the FULL preset neither sets it nor takes it away.
   { LetsGo.setting,
-    "Pokemon GO-style catching, staged in the 3D battle. Flick the mouse, "
-    .. "a finger or the right stick to throw the ball at the wild Pokemon "
-    .. "-- spin it first for a curve -- and land inside the shrinking "
-    .. "ring for a NICE, GREAT or EXCELLENT that raises the catch odds. "
-    .. "CATCH ONLY changes nothing else: picking a ball in battle simply "
-    .. "plays the throw. FULL is the whole Let's Go treatment: wild "
-    .. "encounters open straight in throwing mode (B backs out to the "
-    .. "classic menu), Poke/Great/Ultra Balls are half price, and a catch "
-    .. "pays the whole party experience -- scaled by throw quality, first "
-    .. "throws, new species and your running catch combo. Needs 3D-BTL "
-    .. "on; anywhere the staged fight cannot stand, balls quietly throw "
-    .. "the classic way.",
+    "Pokemon GO-style catching -- flick to throw the ball, with FULL adding "
+    .. "half-price balls and party experience (needs 3D-BTL).",
     cat = "battles", full = true },
 
   -- ------- PERFORMANCE -- what the look COSTS, which is a different question
@@ -570,39 +529,21 @@ local SETTINGS = {
   -- `full` for the AA reason: additive shafts are fill rate, and under 4X
   -- supersampling that is a question about the hardware, not the look.
   { ForestAtmos.setting,
-    "The air of the deep woods (Viridian Forest): a ground haze, and "
-    .. "volumetric light let down through the unseen canopy overhead -- "
-    .. "gold spears of sun by day, silver moon rays at night, pollen "
-    .. "drifting through the beams and fireflies once they cool. LOW "
-    .. "keeps the haze, halves the beam march and stands the particles "
-    .. "down. On a phone the row offers LOW alone: the beams need a "
-    .. "depth texture the pass can read back, and no mobile driver here "
-    .. "grants one.",
+    "Haze and light shafts in the deep woods, with pollen in the beams by "
+    .. "day and fireflies over tall grass at night.",
     cat = "perf", full = true },
   -- `full` on AA's reasoning below, and for the same reason: the sun's pass
   -- is the most expensive thing in the frame after the geometry, so this is
   -- a question about the machine rather than a knob on the diorama, and it
   -- has to stay reachable from inside FULL -- which never sets it either.
   { Shadows.setting,
-    "Real cast shadows: the scene rendered a second time from the sun, so "
-    .. "buildings, trees, ledges and people throw shadows that climb walls, "
-    .. "drape over roofs and slide across each other, following the hour on "
-    .. "the DAYTIME row. It is the most expensive pass in the mode after the "
-    .. "geometry itself -- a whole extra draw of the world every time the "
-    .. "view or anybody in it moves -- so OFF is the first thing to try on a "
-    .. "phone or an old machine. OFF is no shadow at all, the flat drop "
-    .. "shadows under characters included, and the forest's light shafts go "
-    .. "with it: the beams are lit by the sun's own map.",
+    "Real cast shadows from the sun, and the first thing to switch off on a "
+    .. "phone or an old machine.",
     cat = "perf", full = true },
   -- Marked `full` for the opposite reason the battle rows are: this is not a
   -- knob on the look at all, it is what the look COSTS.
   { AntiAlias.setting,
-    "Smooth the stair-stepped edges of the 3D world -- roof ridges, ledge "
-    .. "lips, a tree against the sky -- by rendering the diorama larger than "
-    .. "the window and folding it back down. Every edge in the picture "
-    .. "softens with them, the tileset's own texels included, so the diorama "
-    .. "reads smoother rather than sharper. 2X costs half again as many "
-    .. "pixels in each direction and 4X twice, which makes this the most "
+    "Smooths the stair-stepped edges of the 3D world, and the most "
     .. "expensive row in the mod.",
     cat = "perf", full = true },
 
@@ -611,21 +552,8 @@ local SETTINGS = {
   -- `full` for the same reason as AA: not a knob on the look, a question
   -- about the hardware on the desk.
   { VR.setting,
-    "PCVR through OpenXR (SteamVR, Oculus, WMR). STANDARD follows the VOXEL "
-    .. "ladder: the orbit rungs become a tabletop model your head moves "
-    .. "around, and the 1ST rung stands you inside the world at life size, "
-    .. "looking where the headset looks. DIORAMA is one presentation "
-    .. "instead -- the world always a model, cut to a square viewport you "
-    .. "grab with the grips to carry, turn and open out, with a "
-    .. "fight arriving as a floating disc of the map. There is no 2D and "
-    .. "no first person in it, and the left stick's click throws V-CURVE "
-    .. "to its top rung and back -- which turns the square cut into a ball "
-    .. "with a dissolved rim, because a bent world has no straight sides. "
-    .. "DIORAMA-MR is the same with the background keyed green, for a "
-    .. "mixed-reality capture. "
-    .. "Menus and dialogs float on a panel. Needs a Windows OpenXR runtime "
-    .. "and the mod running from a real folder; without them the row stays "
-    .. "and the game stays flat, with the reason on the console.",
+    "PCVR through OpenXR on Windows, either following the VOXEL ladder or "
+    .. "as a DIORAMA you carry and turn with the grips.",
     cat = "vr",
     -- on Windows the row stays even when a runtime is missing (the console
     -- says why); off Windows -- mobile above all -- there is no VR to have
@@ -635,11 +563,8 @@ local SETTINGS = {
   -- device that is not plugged in decides nothing, and this one is read
   -- exclusively by the headset's right stick.
   { VR.smoothTurn,
-    "Turn smoothly with the right stick instead of snapping 45 degrees a "
-    .. "flick. OFF by default, and deliberately: a software turn moves the "
-    .. "world past a head that did not move, which is the most reliable way "
-    .. "to make somebody ill in a headset. Turn it on if you have your sea "
-    .. "legs and want the continuity.",
+    "Turns smoothly with the right stick instead of snapping 45 degrees, "
+    .. "if you have your sea legs for it.",
     cat = "vr",
     -- and only under STANDARD: the stick turns a HEAD, and neither diorama
     -- mode has the player standing in the world to be turned

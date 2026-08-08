@@ -567,7 +567,10 @@ local root = menuGame.stack:top()
 T.check(root ~= nil, "pressing A pushed a screen")
 T.eq(#root.rows, #Menus.lib.rows(Menus.lib.ROOT, menuGame),
   "carrying the root menu's rows")
-T.eq(root:backLabel(), "BACK", "and a way out named for what it does")
+T.eq(root:backLabel(), "B BACK  SEL HELP",
+  "and a bottom line naming the two buttons that are not obvious")
+T.check(#root:backLabel() <= 18,
+  "which fits the eighteen characters the line has")
 
 -- the second line of a category row
 T.eq(root.rows[rowIndex(root, Menus.catId("battles"))].value(),
@@ -582,10 +585,9 @@ root.index = rowIndex(root, Menus.catId("world"))
 pressed = { a = true }
 root:update(0)
 pressed = {}
-T.eq(menuGame.stack:top():backLabel(), "BACK: 3D WORLD",
-  "A on a category opens it, and the bottom line says which one -- "
-  .. "OptionRows has no header, so the way out carries the name")
-T.check(menuGame.stack:top() ~= root, "which is a screen of its own")
+T.check(menuGame.stack:top() ~= root,
+  "A on a category opens it, as a screen of its own")
+T.eq(menuGame.stack:top().cat, "world", "the one the cursor was on")
 
 pressed = { b = true }
 menuGame.stack:top():update(0)
@@ -595,6 +597,159 @@ pressed = { start = true }
 root:update(0)
 pressed = {}
 T.eq(menuGame.stack:top(), nil, "and START leaves it the way B does")
+end
+
+-- ------- SELECT explains the row the cursor is on
+--
+-- Every setting has carried a paragraph of help since it was written -- it
+-- goes into the schema the mod manager is handed -- and nothing in the engine
+-- has ever drawn one. A row says what it IS and what it is SET TO, and no
+-- engine row anywhere has room for a third thing.
+do
+menuGame.stack.states = {}
+Pipelines.setLevel("voxel", 2)
+local Help = run.loader.exports.DRAMATIC_SHAPE.lib.require("SettingsHelp")
+local menu2 = Menus.lib.new(menuGame, "world")
+
+-- every row on every menu has something to say, the two engine-owned pipeline
+-- rows and the ROM import included -- those three keep theirs in SettingsMenu,
+-- having no SETTINGS entry of their own to keep it in
+for _, cat in ipairs({ Menus.lib.ROOT, "world", "battles", "perf", "vr" }) do
+  for _, row in ipairs(Menus.lib.rows(cat, menuGame)) do
+    T.check(Menus.lib.helpFor(row.id),
+      ("%s has help behind SELECT"):format(row.id))
+  end
+end
+T.check(not Menus.lib.helpFor("nothing:here"),
+  "and a row with nothing to say gets nil rather than an empty box")
+
+-- every character of every one of them has a glyph in the ROM's font.
+--
+-- Read from the REAL charmap rather than the fixture's, which is a stub with
+-- seven entries in it. This is the one place in the mod where prose reaches
+-- the screen verbatim, and Font.encode answers a character it does not know
+-- with a SPACE and a one-time console warning that nobody is reading -- so a
+-- curly quote or a `%` pasted in from somewhere would blank a word and say
+-- nothing about it.
+do
+  local ok, font = pcall(dofile, "data/generated/font.lua")
+  if ok and font and font.charmap then
+    local glyph = { [" "] = true }
+    for _, e in ipairs(font.charmap) do
+      if #e.seq == 1 then glyph[e.seq] = true end
+    end
+    local missing = {}
+    for _, cat in ipairs({ Menus.lib.ROOT, "world", "battles", "perf", "vr" }) do
+      for _, row in ipairs(Menus.lib.rows(cat, menuGame)) do
+        for ch in (Menus.lib.helpFor(row.id) or ""):gmatch(".") do
+          if not glyph[ch] then missing[ch] = true end
+        end
+      end
+    end
+    local names = {}
+    for ch in pairs(missing) do names[#names + 1] = ("%q"):format(ch) end
+    table.sort(names)
+    T.eq(#names, 0, "every character of every help string has a glyph in the "
+      .. "ROM font -- these do not: " .. table.concat(names, " "))
+  end
+end
+
+menu2.index = rowIndex(menu2, "DRAMATIC_SHAPE:viewbox")
+pressed = { select = true }
+menu2:update(0)
+pressed = {}
+local box = menuGame.stack:top()
+T.check(box ~= nil and box ~= menu2, "SELECT opens a box over the menu")
+T.eq(box.title, "RENDER DIST", "titled with the row it explains")
+T.check(#box.lines > 1, "carrying the row's own description, wrapped")
+for _, line in ipairs(box.lines) do
+  T.check(#line <= 17,
+    "every line fits between the border and the more-arrow's column")
+end
+
+-- ------- every description is ONE SENTENCE, and the whole of it is on screen
+--
+-- Both halves matter and the second follows from the first. The box is sized
+-- to what it holds and anchored to the bottom, so a description that fits is
+-- read at a glance with the row it describes still visible above it -- and one
+-- that does not turns a glance into a scroll, which is a worse answer to
+-- "what does this do" than a shorter sentence would have been.
+--
+-- One sentence is: ends with a full stop, and has none inside it. The version
+-- numbers that would break that naive test ("US 1.0") have no space after the
+-- point, which is why the check is for ". " rather than for ".".
+do
+  local long, many = {}, {}
+  for _, cat in ipairs({ Menus.lib.ROOT, "world", "battles", "perf", "vr" }) do
+    for _, row in ipairs(Menus.lib.rows(cat, menuGame)) do
+      local help = Menus.lib.helpFor(row.id)
+      if help then
+        if help:find(". ", 1, true) or not help:find("%.$") then
+          many[#many + 1] = row.id
+        end
+        local probe = Help.new(menuGame, row.label, help)
+        if probe:maxTop() > 0 then
+          long[#long + 1] = ("%s (%d lines)"):format(row.id, #probe.lines)
+        end
+      end
+    end
+  end
+  T.eq(#many, 0,
+    "every description is one sentence -- these are not: "
+    .. table.concat(many, ", "))
+  T.eq(#long, 0,
+    "and every one of them fits its box without scrolling: "
+    .. table.concat(long, ", "))
+end
+
+-- the scroll is still there, for a description that outgrows the box despite
+-- the check above -- a mod-supplied font with a wider glyph, or a sentence
+-- somebody lengthens later. It stops at both ends rather than wrapping.
+do
+  local tall = Help.new(menuGame, "TALL", ("word "):rep(80))
+  T.check(tall:maxTop() > 0, "a description too long for the box scrolls")
+  T.eq(tall.top, 0, "opening at the top")
+  pressed = { up = true }
+  tall:update()
+  pressed = {}
+  T.eq(tall.top, 0, "up at the top stays there")
+  pressed = { down = true }
+  tall:update()
+  pressed = {}
+  T.eq(tall.top, 1, "down moves one line")
+  for _ = 1, 200 do
+    pressed = { down = true }
+    tall:update()
+    pressed = {}
+  end
+  T.eq(tall.top, tall:maxTop(), "and the end of the text ends the scroll")
+  T.eq(tall:maxTop(), #tall.lines - tall:bodyRows(),
+    "with the last boxful still full, not one line stranded at the bottom")
+end
+
+-- and every button that could mean "done" closes it -- SELECT included, which
+-- is the one a player who just pressed it will reach for
+for _, btn in ipairs({ "a", "b", "start", "select" }) do
+  menuGame.stack.states = {}          -- the scrolled box above is still open
+  menu2.index = rowIndex(menu2, "DRAMATIC_SHAPE:viewbox")
+  pressed = { select = true }
+  menu2:update(0)
+  pressed = {}
+  T.check(menuGame.stack:top() ~= nil, "the box is open")
+  pressed = { [btn] = true }
+  menuGame.stack:top():update()
+  pressed = {}
+  T.eq(menuGame.stack:top(), nil, ("%s closes it"):format(btn:upper()))
+end
+
+-- a title strips the "..'" a category row wears to say it opens something:
+-- inside the box it has already opened, the dots are a promise about a press
+-- that has been made
+T.eq(Help.new(menuGame, "3D WORLD..", "x").title, "3D WORLD",
+  "a category's box is titled without the dots that meant `opens something'")
+-- and the wrap never strands a word it cannot fit
+T.eq(#Help.wrapped(("y"):rep(40))[1], 17,
+  "a word longer than the line is broken across lines rather than cut")
 end
 
 -- ------- the mod's row is RED, which is a palette zone and not a color
@@ -4531,6 +4686,84 @@ ForestAtmos.setting:sync("off")
 T.check(ForestAtmos.frame(fmap, DayNight.T.day) == nil,
   "OFF answers no frame at all: no fog uniform, no draw, no spend")
 ForestAtmos.setting:sync("full")
+
+-- ------- and the fireflies get out of the forest
+--
+-- The same particle -- same mesh, same blinking shader, same hour's ramp --
+-- dealt over a map's TALL GRASS rather than over its whole volume, and on
+-- every outdoor map rather than the one with an entry. Grass is the entry.
+
+-- the hour reads the same whether a map has an atmosphere or not, which is
+-- the point of pulling it out of frame(): the two cannot drift apart
+T.check(ForestAtmos.fireflyLevel(DayNight.T.night) > 0.5,
+  "the night shift is out at midnight on a map with no entry either")
+T.check(ForestAtmos.fireflyLevel(DayNight.T.day) < 0.05,
+  "and in by day")
+T.eq(ForestAtmos.fireflyLevel(DayNight.T.night),
+     ForestAtmos.frame(fmap, DayNight.T.night).fireflyLevel,
+  "the forest's own answer IS that answer -- one ramp, read twice")
+
+-- the deal: over the cells handed in, one seed, one arrangement
+local meadow = {}
+for cx = 4, 9 do
+  for cy = 4, 9 do meadow[#meadow + 1] = { cx, cy } end
+end
+local g1 = ForestAtmos.grassLayout(meadow, 4242)
+local g2 = ForestAtmos.grassLayout(meadow, 4242)
+T.eq(#g1, 29, "a 36-cell patch musters fireflies at the default density")
+local steady = true
+for i = 1, #g1 do
+  steady = steady and g1[i].x == g2[i].x and g1[i].z == g2[i].z
+end
+T.check(steady, "and deals them the same way on every visit")
+T.check(#ForestAtmos.grassLayout(meadow, 99) > 0
+        and ForestAtmos.grassLayout(meadow, 99)[1].x ~= g1[1].x,
+  "a different map's seed deals a different swarm")
+
+-- every one of them stands OVER the grass it was dealt for, in the tufts'
+-- own height band -- Structures stands a blade to y = 16
+local overGrass, lowDown = true, true
+for _, fly in ipairs(g1) do
+  local cx, cy = math.floor(fly.x / 16), math.floor(fly.z / 16)
+  if cx < 4 or cx > 9 or cy < 4 or cy > 9 then overGrass = false end
+  if fly.y < 0 or fly.y > 16 then lowDown = false end
+end
+T.check(overGrass, "every firefly is dealt into a cell that HAS grass in it")
+T.check(lowDown, "and low over the blades rather than up in the air")
+
+-- the knobs, and the cap that keeps a big route from dealing thousands
+T.eq(#ForestAtmos.grassLayout(meadow, 1, 2.0), 72,
+  "the density knob musters more of them per cell")
+T.eq(#ForestAtmos.grassLayout(meadow, 1, 2.0, 10), 10,
+  "and the cap is the ceiling over it")
+T.eq(#ForestAtmos.grassLayout({}, 1), 0,
+  "a map with no grass on it deals nothing at all")
+
+-- and the map-level gate: outdoors or under a canopy, never in a cave.
+-- A 4x4-block map is 8x8 cells; grass down the middle two columns.
+local function meadowMap(id, def)
+  return {
+    id = id, def = def, widthCells = 8, heightCells = 8,
+    isGrassCell = function(_, cx, cy)
+      return cx >= 3 and cx <= 4 and cy >= 1 and cy <= 6
+    end,
+  }
+end
+local route = meadowMap("ROUTE_1", { width = 4, height = 4,
+                                     tileset = "OVERWORLD" })
+T.check(#ForestAtmos.grassFliesFor(route) > 0,
+  "a route with tall grass on it has fireflies without an entry anywhere")
+local cave = meadowMap("MT_MOON_1F", { width = 4, height = 4,
+                                       tileset = "CAVERN" })
+T.check(ForestAtmos.grassFliesFor(cave) == nil,
+  "and a cave has none, whatever its collision tiles say -- no hour "
+  .. "reaches it, so no night ever falls in it")
+local wood = meadowMap("VIRIDIAN_FOREST", { width = 4, height = 4,
+                                            tileset = "FOREST" })
+T.check(#ForestAtmos.grassFliesFor(wood) > 0,
+  "the canopy map is not outdoor and gets them anyway: night still FALLS "
+  .. "in a forest, and it is the map they were drawn for")
+ForestAtmos.invalidate()
 end
 
 -- ------- a shadow keeps hold of the feet that throw it

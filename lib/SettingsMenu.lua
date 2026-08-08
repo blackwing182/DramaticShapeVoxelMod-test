@@ -70,12 +70,36 @@ end
 -- opening it. Where no single row speaks for the rest, it counts them, which
 -- is honest rather than arbitrary.
 SettingsMenu.CATEGORIES = {
-  { id = "world", label = "3D WORLD.." },
+  { id = "world", label = "3D WORLD..",
+    help = "The diorama itself: how far the world bends, how much of it is "
+      .. "drawn, what the water does and what hour it is outdoors." },
   { id = "battles", label = "BATTLES..",
-    summary = function() return V.require("OverworldBattle").setting:valueLabel() end },
-  { id = "perf", label = "PERFORMANCE.." },
+    summary = function() return V.require("OverworldBattle").setting:valueLabel() end,
+    help = "What a fight is drawn over, how it is framed, and how a ball is "
+      .. "thrown." },
+  { id = "perf", label = "PERFORMANCE..",
+    help = "What the look costs -- the three most expensive things in the "
+      .. "frame after the geometry itself." },
   { id = "vr", label = "VR..",
-    summary = function() return V.require("VR").setting:valueLabel() end },
+    summary = function() return V.require("VR").setting:valueLabel() end,
+    help = "PCVR through OpenXR, and the one comfort setting that belongs to "
+      .. "the headset alone." },
+}
+
+-- ------- help for the rows that are not settings
+--
+-- The thirteen settings each carry their own paragraph in main.lua's SETTINGS,
+-- next to the row it explains. What is left is the two pipeline rows -- whose
+-- descriptors belong to the ENGINE, so there is nowhere in them to put this --
+-- and the ROM import, which is an action rather than a setting and has no
+-- SETTINGS entry to live in.
+local ROW_HELP = {
+  ["pipeline:voxel"] = "The overworld extruded into real geometry and walked "
+    .. "by a 3D camera, with the numbered rungs its angle in degrees.",
+  ["pipeline:tiltshift"] = "A tilt-shift blur that sells the miniature-model "
+    .. "look, sharp across the middle and softening above and below it.",
+  ["DRAMATIC_SHAPE:stadiumRom"] = "Imports the Pokemon Stadium (US) 1.0 "
+    .. "cartridge that 3D-BTL's STADIUM rungs need.",
 }
 
 -- ------- what the menus are built from
@@ -89,6 +113,25 @@ local pipelineRows = {}
 
 function SettingsMenu.define(list)
   settings = list or {}
+end
+
+-- What SELECT shows for a row: the setting's own paragraph out of SETTINGS,
+-- the category's out of CATEGORIES, or one of the three above for the rows
+-- that have nowhere else to keep it.
+--
+-- Looked up BY ID rather than hung on the row as a field, because two of
+-- these rows are the engine's own tables reused verbatim -- and annotating
+-- somebody else's table is how a mod ends up owning a field it never meant
+-- to. nil for a row with nothing to say, which SELECT reads as "no box".
+function SettingsMenu.helpFor(id)
+  if ROW_HELP[id] then return ROW_HELP[id] end
+  for _, cat in ipairs(SettingsMenu.CATEGORIES) do
+    if SettingsMenu.id(cat.id) == id then return cat.help end
+  end
+  for _, entry in ipairs(settings) do
+    if "DRAMATIC_SHAPE:" .. entry[1].key == id then return entry[2] end
+  end
+  return nil
 end
 
 -- VOXEL and T-SHIFT are the ENGINE's row descriptors (src/render/Pipelines
@@ -273,19 +316,19 @@ function SettingsMenu.signature(rows)
   return table.concat(ids, "\1")
 end
 
--- OptionRows has no room for a title: the four boxes fill the screen down to
--- the bottom line. So the bottom line carries the name as well as the way
--- out, which is the one place left to say where the player is. "BACK" alone
--- at the root, where "BACK: DRAMATIC SHAPE" would run past the 18 characters
--- the line has.
+-- The bottom line is the only place on this screen to say anything that is
+-- not a row: OptionRows' four boxes fill everything above it and there is no
+-- header slot. It spends that line on the two buttons that are not obvious.
+--
+-- It used to carry the category's NAME instead, for orientation. The hint
+-- won: a binding nobody knows about is worth nothing, and where the player is
+-- was just answered by the row they pressed A on. Sixteen characters of the
+-- eighteen the line has, which is also why the name could not stay -- "BACK:
+-- PERFORMANCE" is seventeen on its own.
+SettingsMenu.BACK_LABEL = "B BACK  SEL HELP"
+
 function SettingsMenu:backLabel()
-  if self.cat == SettingsMenu.ROOT then return "BACK" end
-  for _, cat in ipairs(SettingsMenu.CATEGORIES) do
-    if cat.id == self.cat then
-      return "BACK: " .. (cat.label:gsub("%.%.$", ""))
-    end
-  end
-  return "BACK"
+  return SettingsMenu.BACK_LABEL
 end
 
 -- A category's contents can change while the player is looking at them: 3D-BTL
@@ -349,6 +392,19 @@ function SettingsMenu:update()
       pop(self)
       return
     end
+  elseif input:wasPressed("select") then
+    -- SELECT explains the row the cursor is on. Every row on these menus has
+    -- something to say -- the settings have carried a paragraph each since
+    -- they were written, and nothing has ever drawn it (see SettingsHelp) --
+    -- but a row that does not is simply left alone rather than opening an
+    -- empty box.
+    local row = rows[self.index]
+    local help = row and SettingsMenu.helpFor(row.id)
+    if help and self.game.stack then
+      self.game.stack:push(
+        V.require("SettingsHelp").new(self.game, row.label, help))
+    end
+    return
   elseif input:wasPressed("b") or input:wasPressed("start") then
     -- B and START both, like every other menu -- and one level only: this
     -- pops US, leaving the OPTIONS menu underneath exactly as the player

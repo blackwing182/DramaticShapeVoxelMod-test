@@ -1246,8 +1246,10 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor, eyes)
   -- finished depth buffer, so the trees occlude the light and the light
   -- writes nothing; here in the prop slot, after everything the beams
   -- should fall across and inside drawScene so VR gets them per eye. On
-  -- the one map that has any, today.
-  ForestAtmos.draw(state.map)
+  -- the one map that has any, today -- but the FIREFLIES over tall grass
+  -- need no entry and reach every outdoor map, which is why the connected
+  -- neighbours go too: their grass is drawn, so their lights are.
+  ForestAtmos.draw(state.map, state.neighbors)
 
   -- The VR pokedex in the player's left hand, last of all: a prop over
   -- the world drawn with real depth, so leaning it into a wall still

@@ -4,6 +4,57 @@
 
 ### Added
 
+- **Fireflies over tall grass, on every outdoor map.** Viridian Forest has
+  had them since 1.6.2 -- blinking green motes low in the air, dealt over
+  the forest's whole volume as part of its atmosphere. They now come out
+  over TALL GRASS anywhere the hour reaches: a route at midnight has
+  lights loose over its grass and none over the road beside it.
+
+  The same particle, moved rather than rebuilt. Same mesh format, same
+  blinking shader, same one ramp off the day/night clock -- so they come
+  on through dusk and reach full contrast at deepest night exactly when
+  the forest's do, because it is the same function answering (pulled out
+  of `ForestAtmos.frame` as `fireflyLevel` so the two cannot drift
+  apart). What changed is where they are dealt.
+
+  **Grass is the entry.** `data/map_atmosphere.lua` is still the opt-in
+  for fog and god rays, and still names one map; the grass fireflies need
+  no line in it. Each map is scanned once for the cells the engine's own
+  `isGrassCell` calls tall grass -- the collision tile, the rule that
+  decides where a wild battle starts, and the same test `Structures`
+  passes before it sprouts a tuft. Going by the grass GRAPHIC instead
+  would hang lights over town plazas, where the same art turns up as
+  decorative filler inside ordinary ground blocks. Roughly four fireflies
+  to five grass cells, capped at 200 a map; an atmosphere entry may tune
+  both through a `grassFlies` row. A map with no grass on it deals none
+  and costs one scan.
+
+  They are dealt INTO a cell rather than at its middle, and the shader's
+  existing wander carries each about a cell's width from where it was
+  dealt, in the tufts' own height band -- so a patch reads as a patch
+  with fireflies loose over it rather than as a grid of lights. The deal
+  is seeded off the map id, so a route's swarm is the same arrangement on
+  every visit and no two routes get the same one.
+
+  **The connected neighbours get theirs too.** A neighbour map is drawn
+  in full -- ground, trees, grass and the firefly cards standing in it --
+  so a swarm that stopped at the map seam would draw a line across the
+  picture where the lights ran out. The particle shader takes a map
+  origin now and each neighbour's own cached mesh is drawn where its
+  terrain is. Nothing else in the atmosphere crosses a seam, and nothing
+  else needed to: fog and beams belong to the map you are standing in.
+
+  This is the FULL rung of FOREST FX, like every particle in that pass.
+  The per-tuft firefly cards in the grass mesh are the layer underneath
+  and are unchanged -- static geometry the scene shader already carries,
+  so grass still has something alight after dark on LOW and on Android,
+  where this pass is not drawn at all.
+
+  One fix falls out of it: a machine that cannot hand back a readable
+  depth buffer used to lose the whole atmosphere pass, particles
+  included, rather than just the beams it actually blocks. The refusal
+  now takes the beams alone.
+
 - **SHINY POKEMON.** On by default, with no row to switch it off:
   shininess is a property of a Pokemon, not a display mode, and one that
   differed between two players' saves would be a setting rather than a
@@ -153,6 +204,40 @@
   nor takes it away, on the same reasoning as AA -- what the look costs is
   the player's question, not a preset's.
 
+### Added
+
+- **SELECT on any row of the mod's menus explains what it does.** Every
+  setting here has carried a paragraph of help since it was written -- it is
+  handed to the mod manager with the rest of the schema -- and nothing in the
+  engine has ever drawn one. It could not: a row is a label and a value, and
+  no options row anywhere has room for a third thing. So a row says what it
+  IS on one line and what it is SET TO on the next, and SELECT says what that
+  MEANS, which is the question RENDER DIST or 2D-3D B cannot answer in
+  eighteen characters however the label is worded.
+
+  It opens the game's own dialogue box -- drawn with the ROM's own border
+  glyphs, anchored to the bottom of the screen where this game has always put
+  text, and only as tall as the sentence it holds, so the row being asked
+  about is still visible above it. A, B, START and SELECT all close it, SELECT
+  included: it is the button somebody who just pressed it will reach for. The
+  bottom line of every one of the mod's menus now reads `B BACK  SEL HELP`,
+  because a binding nobody knows about is worth nothing.
+
+  Every description is ONE SENTENCE, and the whole of it is on screen at once.
+  The long paragraphs these grew from were written for a reader that never
+  existed, and they read as documentation rather than as an answer; a box you
+  have to scroll is a worse reply to "what does this do" than a shorter
+  sentence is. Both properties are tested rather than trusted -- a description
+  that gains a second sentence, or that outgrows its box, fails the suite.
+  VOXEL, T-SHIFT and STADIUM ROM got sentences of their own to go with the
+  thirteen settings: the first two are the engine's row descriptors with
+  nowhere to keep one, and the third is an action rather than a setting.
+
+  The suite also checks every character of every description against the ROM's
+  real charmap, because Font.encode answers a glyph it does not have with a
+  SPACE and a one-time console warning -- so a curly quote pasted in from
+  somewhere would blank a word on screen and say nothing about it.
+
 ### Changed
 
 - **The settings live on menus of their own now, behind one red row at the
@@ -258,6 +343,22 @@
   one. They are read on the logic step now, through the engine's own
   input.step seam, and taken rather than peeked so a press the capture used
   does not also page the message it just queued.
+
+- **No more grass smeared across the top of a LET'S GO throw.** The capture
+  seat handed BattleScene its pitch as the DEPRESSION below level, and the
+  one thing that reads it -- the camera-ward pull the grass and flowers are
+  drawn with -- measures angles off STRAIGHT DOWN, the complement. So a seat
+  looking nearly level read as the top-down end of the ladder, where the pull
+  is longest: 46 world pixels of bias, handed to a camera standing 46 world
+  pixels behind the player. The pull is a shove along each vertex's own eye
+  ray -- a pure depth bias while it is shorter than the range, and past that
+  it carries geometry THROUGH the lens, where the projection turns inside out
+  and a single tuft at the eye lands smeared across the frame. That was the
+  greenery hanging over the top of a capture shot on any route or street with
+  grass rows beside it. The seat now speaks the same convention the battle's
+  own rig does, and the vertex stage clamps the pull to half the range to the
+  eye besides -- so no camera standing this close can be smeared by a bias
+  again, in a capture, a fight, or first person.
 
 - **The grass moves during a staged battle.** The wind is switched on around
   the free-roam pass's grass draws and off again after them, and the battle

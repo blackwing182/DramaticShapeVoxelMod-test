@@ -137,6 +137,7 @@ ForestAtmos.configFor = configFor
 -- shader and texture sentinels, which is what a lost GL context needs.
 
 local layoutCache = {}
+local grassCache = {}         -- the grass deal, keyed by map; false = no grass
 local meshCache = {}
 local shaders = {}            -- keyed by variant; nil untried, false refused
 local leafTex = nil           -- the tiling leaf-dapple field
@@ -156,9 +157,10 @@ end
 function ForestAtmos.invalidate(mapId)
   if mapId then
     layoutCache[mapId] = nil
+    grassCache[mapId] = nil
     meshCache[mapId] = nil
   else
-    layoutCache, meshCache = {}, {}
+    layoutCache, grassCache, meshCache = {}, {}, {}
     shaders = {}
     leafTex = nil
     rayMesh = nil
@@ -194,6 +196,18 @@ ForestAtmos.RAMP = {
              alpha = 0.40, density = 1.15, motes = 0.0, flies = 1.0 },
 }
 
+-- How far out the night shift is, 0..1, at clock `t`. Pulled out of the
+-- frame's own loop because the GRASS fireflies (below) need it on maps
+-- that have no atmosphere at all -- and pulled out rather than copied so
+-- the two can never disagree about when a firefly comes on.
+function ForestAtmos.fireflyLevel(t)
+  local flies = 0
+  for name, w in pairs(DayNight.mix(t or DayNight.time())) do
+    flies = flies + (ForestAtmos.RAMP[name] or ForestAtmos.RAMP.day).flies * w
+  end
+  return flies
+end
+
 -- The frame's atmosphere for `map` at clock `t` (defaulting to now), or
 -- nil -- no entry, or the row is OFF -- in which case nothing is drawn
 -- and Voxel3D.fog should be left nil.
@@ -203,7 +217,8 @@ function ForestAtmos.frame(map, t)
   if not cfg then return nil end
   local mix = DayNight.mix(t or DayNight.time())
   local fr, fg, fb, rr, rg, rb = 0, 0, 0, 0, 0, 0
-  local alpha, dens, motes, flies = 0, 0, 0, 0
+  local alpha, dens, motes = 0, 0, 0
+  local flies = ForestAtmos.fireflyLevel(t)
   for name, w in pairs(mix) do
     local p = ForestAtmos.RAMP[name] or ForestAtmos.RAMP.day
     fr, fg, fb = fr + p.fog[1] * w, fg + p.fog[2] * w, fb + p.fog[3] * w
@@ -211,7 +226,6 @@ function ForestAtmos.frame(map, t)
     alpha = alpha + p.alpha * w
     dens = dens + p.density * w
     motes = motes + p.motes * w
-    flies = flies + p.flies * w
   end
   -- the haze takes on a little of the light standing in it
   local LEAN = 0.15
@@ -373,6 +387,111 @@ function ForestAtmos.layout(cfg, w, h)
   end
   return { motes = motes, flies = flies }
 end
+
+-- ------- the grass fireflies
+--
+-- The same particle -- same mesh format, same blinking shader, same hour's
+-- ramp -- dealt over a map's TALL GRASS instead of over its whole volume,
+-- and on any outdoor map rather than only the ones with an atmosphere
+-- entry. Grass IS the entry: a route with tall grass on it gets fireflies
+-- after dark without anybody authoring a line, and a map with no grass
+-- cell on it deals nothing and costs one scan.
+--
+-- Placement asks the engine's own question, `map:isGrassCell` -- the
+-- cell's collision tile, the rule that decides where a wild battle can
+-- start -- which is the same test Structures runs before it sprouts a
+-- tuft. The grass GRAPHIC also turns up as decorative filler inside plain
+-- ground blocks, and going by the tile would hang fireflies over town
+-- plazas (the trap that note in Structures.buildGrass records).
+--
+-- They are dealt into the cell rather than at its middle, and the shader's
+-- own wander (sway 10, 4) carries each one about a cell's width from where
+-- it was dealt -- so a patch reads as a patch with fireflies loose over it,
+-- not as a grid of lights. The height band is the tufts' own: 3..15, which
+-- is blade height and a little air (Structures stands its blades to y = 16).
+--
+-- This is the FULL rung, like every other particle here. The per-tuft
+-- firefly cards in Structures.buildGrass are the layer underneath -- they
+-- are static geometry the scene shader already carries, so grass still has
+-- something alight after dark on LOW and on Android, where this pass is
+-- not drawn at all.
+local GRASS_PER_CELL = 0.8    -- fireflies per grass cell...
+local GRASS_CAP = 200         -- ...up to this many on one map
+local CELL = 16               -- world px, the grid isGrassCell speaks
+
+-- A map id deals its own swarm: stable across visits and saves (nothing
+-- here rides the clock), different between maps, so two routes with the
+-- same amount of grass do not get the same arrangement of lights.
+local function seedOf(id)
+  local s = 0x51D
+  for i = 1, #id do s = (s * 31 + id:byte(i)) % 0x100000000 end
+  return s
+end
+
+-- `cells` is a flat list of { cx, cy } pairs; count is worked out from how
+-- many there are. Deterministic, and separated from the map so a test can
+-- hand it a meadow.
+function ForestAtmos.grassLayout(cells, seed, per, cap)
+  local n = #cells
+  if n == 0 then return {} end
+  local want = min(floor(n * (per or GRASS_PER_CELL) + 0.5), cap or GRASS_CAP)
+  local rng = newRng(seed or 0x51D)
+  local flies = {}
+  for _ = 1, want do
+    local c = cells[1 + min(floor(rng:unit() * n), n - 1)]
+    flies[#flies + 1] = {
+      x = c[1] * CELL + rng:unit() * CELL,
+      y = 3 + rng:unit() * 12,
+      z = c[2] * CELL + rng:unit() * CELL,
+      phase = rng:unit() * 6.2832,
+      rate = 0.5 + rng:unit(),
+    }
+  end
+  return flies
+end
+
+-- Only where the clock reaches: an outdoor map, or a CANOPY one (Viridian
+-- Forest is not outdoor -- no sky, no sun -- but night still falls in it,
+-- and it is the map these fireflies were drawn for). A cave stays a cave.
+local function litByTheHour(map)
+  if DayNight.isCanopy(map) then return true end
+  local ok, Map = pcall(require, "src.world.Map")
+  if not (ok and Map and Map.isOutdoor) then return false end
+  local got, outdoor = pcall(Map.isOutdoor, map.def or {})
+  return got and outdoor or false
+end
+
+-- One scan of the map's cells, cached with everything else that goes stale
+-- with it. `false` records "scanned, no grass" so a grassless map is never
+-- walked twice.
+local function grassFliesFor(map)
+  local hit = grassCache[map.id]
+  if hit ~= nil then return hit or nil end
+  if not (map.isGrassCell and litByTheHour(map)) then
+    grassCache[map.id] = false
+    return nil
+  end
+  local cells = {}
+  local w = map.widthCells or ((map.def and map.def.width or 0) * 2)
+  local h = map.heightCells or ((map.def and map.def.height or 0) * 2)
+  -- one pcall around the whole scan, not one per cell: a route is a couple
+  -- of thousand cells and this runs on the frame that first draws the map
+  pcall(function()
+    for cy = 0, h - 1 do
+      for cx = 0, w - 1 do
+        if map:isGrassCell(cx, cy) then cells[#cells + 1] = { cx, cy } end
+      end
+    end
+  end)
+  local cfg = configFor(map.id) or {}
+  local knob = cfg.grassFlies or {}
+  local flies = ForestAtmos.grassLayout(cells, seedOf(map.id),
+                                        knob.per, knob.cap)
+  grassCache[map.id] = (#flies > 0) and flies or false
+  return grassCache[map.id] or nil
+end
+
+ForestAtmos.grassFliesFor = grassFliesFor
 
 -- A map is width x height BLOCKS of 4x4 tiles of 8 pixels -- times 32
 -- for world pixels (the same arithmetic Structures runs in tiles).
@@ -637,6 +756,9 @@ local PART_SHADER = [[
   uniform float size;
   uniform vec2 sway;       // wander amplitude: horizontal, vertical
   uniform float blinky;    // 0 = steady motes, 1 = blinking fireflies
+  uniform vec3 origin;     // the map's corner: zero for the one being
+                           // stood on, the connection offset for a
+                           // neighbour's swarm (one mesh, drawn per map)
   attribute vec4 AtmosData;    // corner x, corner y, phase, rate
   vec4 position(mat4 transform_projection, vec4 vertex_position) {
     float ph = AtmosData.z;
@@ -644,7 +766,7 @@ local PART_SHADER = [[
     float t = time * (0.5 + rt);
     // bounded wander only -- three incommensurate sines, so nothing ever
     // walks off the map or needs a CPU tick to bring it home
-    vec3 base = vertex_position.xyz + vec3(
+    vec3 base = vertex_position.xyz + origin + vec3(
       sin(t * 0.23 + ph) * sway.x,
       sin(t * 0.17 + ph * 2.7) * sway.y,
       cos(t * 0.19 + ph * 1.3) * sway.x);
@@ -733,12 +855,19 @@ local function buildPartMesh(points)
   return mesh
 end
 
-local function meshesFor(map, L)
+-- The map's three swarms in one cache entry: the atmosphere's pollen and
+-- fireflies, which exist only for a map with an entry, and the grass
+-- fireflies, which exist for any outdoor map with tall grass on it. Each
+-- is nil on its own -- a route builds one mesh, Viridian Forest builds
+-- three, and a cave builds none.
+local function meshesFor(map)
   local hit = meshCache[map.id]
   if hit then return hit end
+  local L = layoutFor(map)
   local M = {
-    motes = buildPartMesh(L.motes),
-    flies = buildPartMesh(L.flies),
+    motes = L and buildPartMesh(L.motes) or nil,
+    flies = L and buildPartMesh(L.flies) or nil,
+    grass = buildPartMesh(grassFliesFor(map) or {}),
   }
   meshCache[map.id] = M
   return M
@@ -746,6 +875,7 @@ end
 
 local MOTE_COLOR = { 1.0, 0.96, 0.78 }
 local FLY_COLOR = { 0.72, 1.0, 0.45 }
+local HOME = { 0, 0, 0 }      -- the origin of the map being stood on
 
 -- The billboard frame: the camera's own right and up, from the same
 -- fields every pass sets (per VR eye too -- drawScene runs per eye and
@@ -774,19 +904,29 @@ end
 -- geometry like the Stadium flames. Anything missing -- no entry, OFF, a
 -- refused shader, no readable depth, no shadow map -- subtracts only
 -- itself.
-function ForestAtmos.draw(map)
+--
+-- `f` is nil for every map without an atmosphere entry, and the pass does
+-- NOT stop there any more: the grass fireflies belong to the grass, not to
+-- an authored line, so the fog and the beams sit that map out and the
+-- particle block below still runs. Every read of `f` past here is guarded.
+function ForestAtmos.draw(map, neighbors)
   local rung = ForestAtmos.setting:get()
   if rung == "off" then return end
+  if not (map and map.id) then return end
   local f = ForestAtmos.frame(map)
-  if not f then return end
   local Voxel3D = V.require("Voxel3D")
   local ShadowMap = V.require("ShadowMap")
 
-  if f.rayAlpha > 0.01 then
-    if not Voxel3D.depthReadable() then
-      say("depth", "no readable depth this frame -- beams off, fog stays")
-      return
-    end
+  -- A refusal here takes the BEAMS, not the frame: this one used to
+  -- `return` out of the function, which took the particles with it. They
+  -- fall through now, so a machine that cannot hand back a readable depth
+  -- buffer still gets fireflies over its grass.
+  local beams = f and f.rayAlpha > 0.01 or false
+  if beams and not Voxel3D.depthReadable() then
+    say("depth", "no readable depth this frame -- beams off, fog stays")
+    beams = false
+  end
+  if beams then
     -- no beams without the sun's own pass: uvVP is only the world -> map
     -- transform while a shadow map is actually standing
     local sunTex = ShadowMap.active() and ShadowMap.texture()
@@ -843,11 +983,13 @@ function ForestAtmos.draw(map)
   end
 
   if rung == "full" then
-    local L = layoutFor(map)
-    local M = L and meshesFor(map, L)
+    local M = meshesFor(map)
+    -- the night shift, for the grass swarm: the atmosphere's own answer
+    -- where there is one, and the bare ramp where there is not
+    local flyLevel = f and f.fireflyLevel or ForestAtmos.fireflyLevel()
     local psh = partShader()
     local axisR, axisU = billboardAxes(Voxel3D)
-    if M and psh and axisR then
+    if (M.motes or M.flies or M.grass) and psh and axisR then
       Voxel3D.blend("add")
       if Voxel3D.beginEffect(psh) then
         pcall(psh.send, psh, "vp", "row", Voxel3D.vp)
@@ -860,7 +1002,8 @@ function ForestAtmos.draw(map)
         pcall(psh.send, psh, "axisR", axisR)
         pcall(psh.send, psh, "axisU", axisU)
         pcall(psh.send, psh, "time", ForestAtmos.time)
-        if M.motes and f.moteLevel > 0.02 then
+        pcall(psh.send, psh, "origin", HOME)
+        if M.motes and f and f.moteLevel > 0.02 then
           pcall(psh.send, psh, "size", 1.4)
           pcall(psh.send, psh, "sway", { 5, 2.5 })
           pcall(psh.send, psh, "blinky", 0)
@@ -868,13 +1011,32 @@ function ForestAtmos.draw(map)
           pcall(psh.send, psh, "level", f.moteLevel * 0.5)
           pcall(love.graphics.draw, M.motes)
         end
-        if M.flies and f.fireflyLevel > 0.02 then
+        -- every swarm of fireflies shares every uniform but the mesh and
+        -- the map corner it stands on: the grass ones ARE the forest's,
+        -- moved onto the grass.
+        --
+        -- The NEIGHBOURS matter here in a way they never did for the fog
+        -- or the beams. A connected route is drawn in full -- its ground,
+        -- its trees, its grass and the firefly cards standing in it -- so
+        -- a swarm that stopped at the seam would draw a line across the
+        -- map where the lights ran out. Each neighbour's own deal is a
+        -- mesh already cached against its id; it costs a uniform and a
+        -- draw call to put it where the terrain under it is.
+        if flyLevel > 0.02 then
           pcall(psh.send, psh, "size", 1.6)
           pcall(psh.send, psh, "sway", { 10, 4 })
           pcall(psh.send, psh, "blinky", 1)
           pcall(psh.send, psh, "dotColor", FLY_COLOR)
-          pcall(psh.send, psh, "level", f.fireflyLevel * 0.85)
-          pcall(love.graphics.draw, M.flies)
+          pcall(psh.send, psh, "level", flyLevel * 0.85)
+          if M.flies then pcall(love.graphics.draw, M.flies) end
+          if M.grass then pcall(love.graphics.draw, M.grass) end
+          for _, nb in ipairs(neighbors or {}) do
+            local NM = nb.map and nb.map.id and meshesFor(nb.map)
+            if NM and NM.grass then
+              pcall(psh.send, psh, "origin", { nb.ox or 0, 0, nb.oy or 0 })
+              pcall(love.graphics.draw, NM.grass)
+            end
+          end
         end
         Voxel3D.endEffect()
       end

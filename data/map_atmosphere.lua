@@ -13,7 +13,9 @@
 -- light a canopy map ever gets -- see DayNight.CANOPY); only its COLOUR
 -- and STRENGTH follow the clock: gold spears of sun by day, silver moon
 -- rays after dark, pollen adrift in the day's beams and fireflies once
--- they cool.
+-- they cool. The fireflies are the one part of this that reaches past the
+-- table: they also come out over TALL GRASS on every outdoor map, entry
+-- or no entry (see grassFlies below).
 --
 -- A map with no entry here has no atmosphere at all: no fog uniform is
 -- raised, no march runs, nothing is spent. That is the contract a new
@@ -36,8 +38,18 @@
 --   rays      strength  overall in-scatter gain on the march
 --             reach     how far out the march walks, in world px
 --   motes     count of pollen/dust flecks adrift in the daylight beams
---   fireflies count of the night shift
+--   fireflies count of the night shift, dealt over the map's whole volume
 --   seed      the xorshift seed the particle deal runs on
+--   grassFlies  per  fireflies dealt per TALL GRASS cell (default 0.8)
+--               cap  and the most one map may have of them (default 200)
+--
+-- That last row is the odd one out, and the only knob here a map does not
+-- need an entry to get. The GRASS fireflies are dealt over a map's tall
+-- grass rather than over its air, and every outdoor map has them -- grass
+-- is the entry, so a route gets fireflies after dark without a line here
+-- and a map with no grass on it deals none. What an entry buys is TUNING:
+-- a `grassFlies` row moves the two numbers off their defaults, and that
+-- is the whole of it. See ForestAtmos, under "the grass fireflies".
 --
 -- Two caveats for maps opting in later: the water pass has no fog term,
 -- so a lake under heavy haze stays clear-day sharp in its reflections;
