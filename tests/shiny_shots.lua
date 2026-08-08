@@ -58,6 +58,15 @@ return function(game)
   -- unrecoloured Pokemon. Calling begin/step directly is both faster and
   -- honest about what is being tested, which is the extraction, not the
   -- screen that usually triggers it.
+  -- the upgrade question, asked before anything is built: with a stale
+  -- marker on disk, does this machine know it has work to do?
+  U.log(("upgrade check: ready=%s usable=%s available=%s pending=%s rom=%s")
+        :format(tostring(StadiumInstall.ready()),
+                tostring(StadiumInstall.usable()),
+                tostring(StadiumInstall.available()),
+                tostring(StadiumInstall.pending()),
+                tostring(StadiumInstall.romPresent())))
+
   if not StadiumInstall.ready() then
     local ok, err = StadiumInstall.begin()
     U.log(("stadium build: begin=%s %s"):format(tostring(ok), tostring(err or "")))

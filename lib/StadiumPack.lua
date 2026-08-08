@@ -78,15 +78,27 @@ local function readPack(species, shiny)
   -- half-written folder must not be read at all. Required lazily: Install
   -- requires this module at load, so the reverse edge cannot be taken then.
   local rel = packName(StadiumPack.CACHE_DIR, species, shiny)
+  local install = V.require("StadiumInstall")
+  local mod = V.mod
+  local haveShipped = false
+  if mod and mod.read then
+    local okS, b = pcall(mod.read, mod, packName(StadiumPack.DIR, species, shiny))
+    haveShipped = okS and type(b) == "string" and #b > 4
+  end
+  -- A CURRENT cache always wins. A stale one (readable, but built by an older
+  -- extractor) wins only when there is no shipped set to prefer instead --
+  -- that ordering is what stops a cache from an extractor rev we have since
+  -- fixed shadowing good files, while still leaving something on screen for a
+  -- player whose only copy IS that cache. A half-written folder is caught by
+  -- the marker and satisfies neither.
   if love and love.filesystem and love.filesystem.getInfo
-     and V.require("StadiumInstall").ready() then
+     and (install.ready() or (install.usable() and not haveShipped)) then
     local okInfo, info = pcall(love.filesystem.getInfo, rel, "file")
     if okInfo and info then
       local ok, bytes = pcall(love.filesystem.read, rel)
       if ok and type(bytes) == "string" and #bytes > 4 then return bytes end
     end
   end
-  local mod = V.mod
   if not (mod and mod.read) then return nil end
   local ok, bytes = pcall(mod.read, mod,
                           packName(StadiumPack.DIR, species, shiny))

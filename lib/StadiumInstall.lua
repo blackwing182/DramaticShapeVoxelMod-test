@@ -189,22 +189,46 @@ local function shipped()
   return true
 end
 
--- Whether the STADIUM rungs can be offered at all: either the packs have been
--- built from the player's ROM, or the mod folder already carries a set.
+-- Whether the packs on disk can be READ, even if they are not current.
+--
+-- Format and count, but deliberately NOT rev. The distinction matters on an
+-- upgrade: a rev bump means the packs are out of date, not that they are
+-- unreadable, and treating the two the same is what would make the STADIUM
+-- rungs disappear off the options row for anyone whose cache predates it.
+-- Losing the recolour until a rebuild is a blemish; losing the mode is not.
+function StadiumInstall.usable()
+  local m = readMarker()
+  return (m ~= nil and m.format == StadiumInstall.FORMAT
+          and m.count == StadiumInstall.COUNT) and true or false
+end
+
+-- Whether the STADIUM rungs can be offered at all: the packs have been built
+-- from the player's ROM (current or merely readable), or the mod folder
+-- already carries a set.
 function StadiumInstall.available()
   if StadiumInstall.ready() then return true end
+  if StadiumInstall.usable() then return true end
   return shipped()
 end
 
--- Whether there is work to do: something to build from, and nothing usable
--- yet.
+-- Whether there is work to do: a ROM to build from, and no CURRENT set.
 --
--- A checkout that already carries a set is NOT pending. Building anyway would
--- be correct and would also mean a ten-second loading screen on the first run
--- of every checkout, to arrive at the files that were already sitting there.
+-- Keyed on ready() rather than available(), and that is the whole upgrade
+-- story. It used to short-circuit on available(), which meant a checkout
+-- carrying assets/stadium was never pending -- so when REV went to 3 for the
+-- shiny variants, such a machine did not rebuild, was not asked to, and
+-- quietly kept serving the old set: every shiny Pokemon drawn in its
+-- ordinary colours, with nothing on screen to say why. That is exactly what
+-- happened here, and it took a driver run sitting at "idle 0/151" to notice.
+--
+-- The cost this trades away is real and was the original reason: a checkout
+-- with a ROM now spends one loading screen rebuilding a set it already had
+-- files for. Once. After that ready() is true and it is not pending again --
+-- and what it buys is that a rev bump actually reaches the people it was
+-- bumped for.
 function StadiumInstall.pending()
-  if StadiumInstall.available() then return false end
-  return StadiumInstall.romPresent()
+  if not StadiumInstall.romPresent() then return false end
+  return not StadiumInstall.ready()
 end
 
 function StadiumInstall.forget()
