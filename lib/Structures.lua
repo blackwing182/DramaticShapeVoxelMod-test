@@ -3089,6 +3089,80 @@ local function maskPlate(quads, m, perRow, atlasW, atlasH, x0, r, y, z0, D)
   end
 end
 
+-- An AUTHORED solid standing on furniture, given as plan layers instead of
+-- extruded from the drawing (see TileShape's `model`).  The one thing it
+-- shares with the mask paths is that nothing here is a colour: each layer
+-- names the atlas texels its top and its sides wear, and every quad below
+-- samples one of them, so the Centers' bell is painted out of the counter's
+-- own pixels and recolours with it.
+--
+-- Placement is by CELL, not by drawn row.  A model exists because the
+-- drawing was too small to un-project, so its drawn row says nothing about
+-- depth worth keeping -- what says something is which piece of furniture it
+-- is on and which end of it a person reaches: the solid is centred on the
+-- mask's own columns and pushed to the SOUTH edge of the support cell, the
+-- face the aisle is on, less the entry's `inset` -- the one number here
+-- taste can move, because flush against the counter's own front lip is a
+-- real position and so is a couple of voxels back from it.
+local function maskModel(quads, m, perRow, atlasW, atlasH, xMid, zSouth, y0)
+  local function uvOf(t)
+    local tile, row, col = t[1], t[2], t[3] or 0
+    return ((tile % perRow) * 8 + col + 0.5) / atlasW,
+           (math.floor(tile / perRow) * 8 + row + 0.5) / atlasH
+  end
+
+  for k, L in ipairs(m) do
+    local u, v = uvOf(L.side)
+    local ut, vt = uvOf(L.top)
+    local above = m[k + 1]
+    local x0 = xMid - math.floor(L.w / 2)
+    local z0 = zSouth - L.d
+    local function solid(layer, dx, dz)
+      if not layer or dx < 0 or dx >= layer.w or dz < 0 or dz >= layer.d then
+        return false
+      end
+      return layer.cells[dz * layer.w + dx] or false
+    end
+    for dz = 0, L.d - 1 do
+      for dx = 0, L.w - 1 do
+        if solid(L, dx, dz) then
+          local x, y, z = x0 + dx, y0 + k - 1, z0 + dz
+          local function quad(c1, c2, c3, c4, uu, vv, shade)
+            quads[#quads + 1] = { c1, c2, c3, c4, u = uu, v = vv,
+                                  shade = shade }
+          end
+          -- a layer's own plan is what closes it: a face is drawn wherever
+          -- the neighbouring cell of this layer is empty, and the top
+          -- wherever the layer ABOVE does not stand on it.  Nothing needs a
+          -- bottom -- layer 1 rests on the furniture and the rest rest on
+          -- each other.
+          if not solid(above, dx, dz) then
+            quad({ x, y + 1, z }, { x + 1, y + 1, z }, { x + 1, y + 1, z + 1 },
+                 { x, y + 1, z + 1 }, ut, vt, OBJ_SHADE.top)
+          end
+          if not solid(L, dx, dz + 1) then
+            quad({ x, y, z + 1 }, { x + 1, y, z + 1 },
+                 { x + 1, y + 1, z + 1 }, { x, y + 1, z + 1 }, u, v,
+                 OBJ_SHADE.front)
+          end
+          if not solid(L, dx, dz - 1) then
+            quad({ x + 1, y, z }, { x, y, z }, { x, y + 1, z },
+                 { x + 1, y + 1, z }, u, v, OBJ_SHADE.back)
+          end
+          if not solid(L, dx - 1, dz) then
+            quad({ x, y, z }, { x, y, z + 1 }, { x, y + 1, z + 1 },
+                 { x, y + 1, z }, u, v, OBJ_SHADE.side)
+          end
+          if not solid(L, dx + 1, dz) then
+            quad({ x + 1, y, z + 1 }, { x + 1, y, z }, { x + 1, y + 1, z },
+                 { x + 1, y + 1, z + 1 }, u, v, OBJ_SHADE.side)
+          end
+        end
+      end
+    end
+  end
+end
+
 -- ---- figures: a thing drawn INTO furniture, cut out and stood up ----
 
 -- One authored figure at one matched position.
@@ -3171,7 +3245,20 @@ local function buildFigure(S, map, fig, tx, ty, perRow)
   local atlasW = map.tileset.imageWidth or 128
   local atlasH = map.tileset.imageHeight or 48
 
-  if fig.depth then
+  if fig.model then
+    -- An authored solid: centred on the mask's own columns, standing on
+    -- the furniture's top plane at the front of its cell.
+    local maxX = minX
+    for ly = 0, bh - 1 do
+      for lx = 0, bw - 1 do
+        if at(lx, ly) and lx > maxX then maxX = lx end
+      end
+    end
+    local xMid = tx * 8 + math.floor((minX + maxX + 1) / 2)
+    local zSouth = (math.floor((ty + fig.h - 1) / 2) + 1) * 16 - (fig.inset or 0)
+    maskModel(S.objectQuads, fig.model, perRow, atlasW, atlasH,
+              xMid, zSouth, baseY)
+  elseif fig.depth then
     -- An OBJECT: the standee slab, standing on the FRONT edge of the tile
     -- row its feet are drawn in -- the south face of the 8px band a
     -- character card would have pivoted in.  It is anchored there and

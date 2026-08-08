@@ -906,11 +906,13 @@ return {
       -- two flanks -- see `prop` below.
       wall = { 2, 3, 4, 5, 6, 16, 18, 19, 20, 21, 22, 40, 41,
                76, 77, 92, 93, 94, 95 },
-      -- the counters, half a cell high: top band (8) with the nurse's
-      -- tray (10), front face (24/25, the game's counterTiles), left end
-      -- cap (56) and the Cable Club's light sections (90/91).  8px is
-      -- one clean band, so the drawn front panel stands up and the
-      -- counter top stays on top; at 12 they read as wall stubs
+      -- the counters, half a cell high: top band (8) and the one cell of
+      -- it that carries the push bell (10, lifted off as a figure below --
+      -- the pin stays as the degradation path), front face (24/25, the
+      -- game's counterTiles), left end cap (56) and the Cable Club's light
+      -- sections (90/91).  8px is one clean band, so the drawn front panel
+      -- stands up and the counter top stays on top; at 12 they read as
+      -- wall stubs
       counter = { 8, 10, 24, 25, 56, 90, 91,
                   -- and the lounge couch's SEAT column with the man
                   -- sitting on it.  Same half-cell box: its bottom row
@@ -1035,6 +1037,74 @@ return {
       -- on the arm.  The background corners around his head and the
       -- cushion wedge under his legs are the only pixels given back.
       figures = {
+        -- THE PUSH BELL on the reception counter.  One tile, $0A, drawn in
+        -- the counter's TOP tile row at cell (3,2) -- the same cell in all
+        -- eleven Centers and nowhere else on this id (scan: 11 hits, all
+        -- tile (7,4)).  Every other counter cell in the game runs 8 over
+        -- 24/25; this one runs 8/10 over 24/25, and 10 is 8 with the bell
+        -- painted into its east half.
+        --
+        -- It could not be a class pin: a pin resolves a whole 8x8 tile, and
+        -- the tile is three quarters counter top.  Pinned with the counter
+        -- (which is what it was) the bell was just ink lying on the
+        -- surface -- and lying on it TWICE, because the counter's one top
+        -- row had to cover a 16px-deep plot and the mesher repeated it (see
+        -- the half-cell rule in ChunkMesher: fixed, and the two stacked
+        -- bells were what showed it).
+        --
+        -- So it is lifted off by mask, exactly like the Marts' till, and
+        -- `under` puts plain 8 back -- the counter top the artist drew for
+        -- every other cell of the same run, so nothing is synthesized and
+        -- the surface closes up seamlessly.
+        --
+        -- Unlike the till it is NOT an extrusion of its drawing.  Seven
+        -- pixels by six of ¾-view dome state a round object and nothing
+        -- else usable: every reading that turns six rows into geometry
+        -- invents more than it measures.  So the solid is AUTHORED (see
+        -- TileShape's `model`) -- a 5x3 puck with its corners taken off,
+        -- one voxel proud of the counter, with a single button voxel at
+        -- its centre.  `pixels` stays as the segmentation: it is what says
+        -- where on the tile the bell is, and the model centres on it.
+        --
+        -- COLOUR is still not authored.  Each layer names the texel its
+        -- faces wear, and all four come off tile 8 -- the counter's own
+        -- plain top, whose first rows are one flat shade each: row 0 its
+        -- black back edge, row 1 its white highlight, row 5 its light
+        -- band.  So the puck's sides are the desk's own light shade, its
+        -- top the desk's own white, and the button's sides the desk's own
+        -- black, and all four follow every palette bake with it.
+        --
+        -- It stands at the FRONT of the counter cell: a service bell is on
+        -- the customer's side of the desk, and this is the only object in
+        -- the profile whose depth its drawing does not state.  `inset` 2
+        -- backs it off the counter's own front lip -- flush read as balanced
+        -- on the edge; this is the number to move to slide it either way.
+        {
+          w = 1,
+          inset = 2,
+          tiles = { 10 },
+          under = {  8 },
+          model = {
+            { plan = { "0xxx0",
+                       "xxxxx",
+                       "0xxx0" },
+              top = { 8, 1 }, side = { 8, 5 } },
+            { plan = { "00000",
+                       "00x00",
+                       "00000" },
+              top = { 8, 1 }, side = { 8, 0 } },
+          },
+          pixels = {
+            "........",
+            "........",
+            "...XXX..",
+            "..XXXXX.",
+            ".XXXXXXX",
+            ".XXXXXXX",
+            "..XXXXX.",
+            "...XXX..",
+          },
+        },
         {
           w = 3,
           tiles = { 36, 37, 57,

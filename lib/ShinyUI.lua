@@ -97,7 +97,6 @@ end
 
 function ShinyUI.install()
   ShinyUI.installSummary()
-  ShinyUI.installBattlePics()
 end
 
 -- The status page. Wraps the draw and adds the star afterwards, so the
@@ -177,51 +176,25 @@ function ShinyUI.installSummary()
   SummaryMenu.dramaticShapeShiny = true
 end
 
--- The battle pics. The engine's pic layer is reached through
--- BattleState:drawPicsLayer, which draws BOTH sides in one call -- so a
--- per-side tint has to bracket each side separately, which is exactly what
--- OverworldBattle.sideTexture already does when it renders one side at a
--- time into its own canvas. That is where the tint belongs on the 3D path;
--- this wrap covers the FLAT path, where the engine draws the battle itself.
-function ShinyUI.installBattlePics()
-  local ok, BattleState = pcall(require, "src.battle.BattleState")
-  if not ok or type(BattleState) ~= "table" then return end
-  if BattleState.dramaticShapeShinyPics then return end
-  local inner = BattleState.drawPicsLayer
-  if type(inner) ~= "function" then return end
-
-  function BattleState:drawPicsLayer(...)
-    -- THE 3D PATH HAS ALREADY DONE THIS, per side and better: when the mod
-    -- is rendering one side into its own canvas it brackets that draw with
-    -- that side's own tint (OverworldBattle.sideTexture). Tinting again here
-    -- would square it. Asked as a question rather than left to install
-    -- order, because both wraps are installed from main.lua and whichever
-    -- ran first would otherwise silently decide the outcome.
-    local okOw, Ow = pcall(V.require, "OverworldBattle")
-    if okOw and Ow and Ow.texturingSide and Ow.texturingSide() then
-      return inner(self, ...)
-    end
-
-    -- Both sides at once, so when they disagree the tint cannot be applied
-    -- per-side here without splitting the engine's own draw. When only ONE
-    -- side is shiny we tint the whole layer by it: the other side's pic is
-    -- dimmed slightly, which is far less wrong than a shiny drawn in its
-    -- ordinary colours -- and when both are shiny each gets the mean.
-    local data = self.game and self.game.data
-    local a = self.player and ShinyUI.tintFor(self.player.mon, data)
-    local b = self.enemy and ShinyUI.tintFor(self.enemy.mon, data)
-    local tint = a or b
-    if a and b then
-      tint = { (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[3] + b[3]) / 2 }
-    end
-    if not tint then return inner(self, ...) end
-    local args = { ... }
-    local out
-    ShinyUI.withTint(tint, function() out = { inner(self, unpack(args)) } end)
-    return unpack(out or {})
-  end
-
-  BattleState.dramaticShapeShinyPics = true
-end
+-- ------- the battle pics are NOT tinted here any more
+--
+-- There used to be a third wrap in this file: a multiply over
+-- BattleState:drawPicsLayer, with the tint above. It is gone, and the reason
+-- is worth keeping so it is not put back.
+--
+-- A multiply can only DARKEN. Shiny Gyarados is blue turning red, and the
+-- nearest a multiply gets to that is a dimmer blue -- so every species whose
+-- shiny is lighter, or is a rotation rather than a dimming, read as the
+-- ordinary one with the brightness down. And the engine's pic layer draws
+-- BOTH sides in one call, so a shiny also dimmed the ordinary mon opposite it.
+--
+-- lib/ShinyPics.lua replaces it by moving the PALETTE instead, which is where
+-- a battle pic's colour actually lives: getImage bakes the four DMG shades
+-- into the species palette once and caches the result, so handing that bake a
+-- shiny palette (under a cache name of its own) gives a genuinely recoloured
+-- pic -- brightening included -- for one side alone.
+--
+-- ShinyUI.withTint and ShinyUI.tintFor stay: the 3D path still uses them for
+-- the per-side canvas, and they are the only tint left in the mod.
 
 return ShinyUI

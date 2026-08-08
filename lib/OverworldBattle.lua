@@ -1101,43 +1101,20 @@ function OverworldBattle.sideTexture(battle, side)
   for k, v in pairs(OFF[side]) do saved[k] = battle[k]; battle[k] = v end
   texturing = side
 
-  -- A SHINY on this side, tinted here rather than in ShinyUI's flat-path
-  -- wrap. This is the one place a pic is rendered for ONE side at a time,
-  -- so it is the only place the two sides can be tinted differently -- a
-  -- shiny facing an ordinary mon gets its own colour and leaves the other
-  -- alone, which the engine's both-sides-at-once pic layer cannot do.
-  local shinyTint = nil
-  do
-    -- NOT when this side is showing a PERSON. Both sides can be holding a
-    -- trainer pic rather than a Pokemon -- the foe's portrait before the
-    -- send-out, and the player's own back until "Go!" -- and a shiny is a
-    -- fact about a Pokemon, not about its owner. Tinting through it turned
-    -- the player's trainer sprite a different colour for the whole intro,
-    -- which is what a shiny Pokemon in the party looks like if you do not
-    -- ask this question. The two tests are the same ones sideTexture already
-    -- uses to label the finished texture, asked here instead of after.
-    local person = (side == "enemy"
-                    and battle.showEnemyTrainer and battle.trainerPic)
-                or (side == "player"
-                    and battle.showPlayerBack and battle.playerBackPic)
-    if not person then
-      local battler = (side == "player") and battle.player or battle.enemy
-      local g2 = game()
-      shinyTint = battler and V.require("ShinyUI")
-                  .tintFor(battler.mon, g2 and g2.data) or nil
-    end
-  end
-
+  -- ------- no shiny tint here any more
+  --
+  -- This used to bracket the draw below with that side's shiny tint, on the
+  -- grounds that rendering one side at a time is the only place the two can
+  -- be coloured differently. True, and no longer needed: the PIC itself is
+  -- now built from a shiny palette (lib/ShinyPics.lua), which is per-mon
+  -- rather than per-side and gets the colour right instead of approximating
+  -- it with a multiply. Tinting on top of that would apply the shift twice.
   local ok, err = pcall(function()
     g.setCanvas(canvas)
     g.clear(0, 0, 0, 0)
     g.setBlendMode("alpha")
     g.setColor(1, 1, 1, 1)
-    if shinyTint then
-      V.require("ShinyUI").withTint(shinyTint, innerPics, battle, 0, 0, 0)
-    else
-      innerPics(battle, 0, 0, 0)
-    end
+    innerPics(battle, 0, 0, 0)
   end)
 
   texturing = nil
@@ -1288,6 +1265,22 @@ function OverworldBattle.install()
     return TEX_AX - w * scale / 2, TEX_AY - h * scale, s
   end
 
+  -- ------- the shiny arrival sparkle, on every rung this file draws
+  --
+  -- Called from BOTH branches below, because both are a complete battle
+  -- frame: the `not shot` branch is the engine's own screen (3D-BTL OFF, and
+  -- any battle the mod does not stage), and the other is the staged shot.
+  --
+  -- It lives here rather than on a hook or a monkeypatch of its own because
+  -- this override IS the battle's draw -- every rung, every frame. The two
+  -- other seams were tried and measured at zero calls: BattleState:update is
+  -- never reached (the battle is not the top of the stack during its own
+  -- intro), and the engine's `battle.overlay` hook is only reached through
+  -- the tail of the engine's draw. See lib/ShinyFlash.lua.
+  local function shinyFlash(battle)
+    pcall(function() V.require("ShinyFlash").render(battle) end)
+  end
+
   local innerDraw = BattleState.draw
   function BattleState:draw()
     local shot = OverworldBattle.shot()
@@ -1298,7 +1291,9 @@ function OverworldBattle.install()
       -- that loses its arena mid-fight goes back to white voids
       self.letterboxWhite = nil
       self.dramaticShapeShot = nil
-      return innerDraw(self)
+      local out = innerDraw(self)
+      shinyFlash(self)
+      return out
     end
     self.dramaticShapeShot = shot
     -- The world reaches the screen through the seam a render pipeline's
@@ -1325,6 +1320,7 @@ function OverworldBattle.install()
     -- own HUD drew in, so it letterboxes and chunks identically
     local cap = BattleScene.capture
     if cap and cap.drawGB then pcall(cap.drawGB, self) end
+    shinyFlash(self)
   end
 
   -- The mons are geometry standing on the map now, drawn in the 3D pass
