@@ -163,12 +163,42 @@ end
 -- Start (or restart) the burst on one side. Restarting rather than ignoring
 -- a second call is deliberate: a shiny that faints and is sent back out
 -- should sparkle again.
+-- ARMED, BUT NOT YET RUNNING. The clock does not start here, and that is the
+-- whole point: the edge this is armed on -- a side's occupant changing --
+-- happens while the screen is still mid-WIPE, a second or more before the
+-- battle draws a single frame. A burst that started its three-quarter-second
+-- life at that moment was always over before anybody could see it, which is
+-- exactly what "the sparkle isn't appearing" looked like: armed, drawn,
+-- counted, and finished behind the transition.
+--
+-- So `pending` holds it at frame zero until the scene actually draws this
+-- side (see draw), and the life begins from there.
 function ShinyFx.arm(side)
   if side ~= "player" and side ~= "enemy" then return end
-  live[side] = { t = 0 }
+  live[side] = { t = 0, pending = true }
+  if ShinyFx.debug then ShinyFx.debug.armed = (ShinyFx.debug.armed or 0) + 1 end
+end
+
+-- The fight is on screen now: let any burst waiting on this side begin.
+--
+-- Split from arm because the two moments are genuinely different and were
+-- conflated twice. Arming happens when the OCCUPANT changes, which is during
+-- the transition; the burst may only start once the transition is OVER and
+-- there is somebody watching. Between them it sits at zero.
+function ShinyFx.release(side)
+  local s = live[side]
+  if s and s.pending then
+    s.pending = nil
+    if ShinyFx.debug then
+      ShinyFx.debug.released = (ShinyFx.debug.released or 0) + 1
+    end
+  end
 end
 
 function ShinyFx.clear(side)
+  if ShinyFx.debug and side and live[side] then
+    ShinyFx.debug.cleared = (ShinyFx.debug.cleared or 0) + 1
+  end
   if side then live[side] = nil else live.player, live.enemy = nil, nil end
 end
 
@@ -181,7 +211,9 @@ function ShinyFx.update(dt)
   dt = dt or 0
   for _, side in ipairs({ "player", "enemy" }) do
     local s = live[side]
-    if s then
+    -- a pending burst does not age: it is waiting for the scene to draw it
+    -- for the first time, which is when its life actually begins (see arm)
+    if s and not s.pending then
       s.t = s.t + dt
       if s.t >= ShinyFx.LIFE then live[side] = nil end
     end
@@ -201,7 +233,7 @@ local function easeOut(u) return 1 - (1 - u) * (1 - u) end
 -- invisible to the test suite and this one has four separate ways to be a
 -- no-op, all of them silent.
 ShinyFx.debug = { calls = 0, noArena = 0, noImage = 0, noMesh = 0,
-                  noLive = 0, quads = 0 }
+                  noLive = 0, quads = 0, armed = 0, cleared = 0 }
 
 function ShinyFx.draw(arena, groundY, pull)
   local dbg = ShinyFx.debug
@@ -220,6 +252,12 @@ function ShinyFx.draw(arena, groundY, pull)
   for _, side in ipairs({ "player", "enemy" }) do
     local s = live[side]
     local cell = (side == "player") and arena.player or arena.enemy
+    -- A pending burst is not drawn at all. It is waiting for the fight to be
+    -- ON SCREEN, which is not the same as the scene being drawn: the battle
+    -- renders underneath the transition wipe for a second or so first, and a
+    -- burst started there spends its whole life behind it. Stadium.release
+    -- is what says the wipe is done.
+    if s and s.pending then s = nil end
     if s and cell then
       local u = math.min(1, s.t / ShinyFx.LIFE)
       local e = easeOut(u)

@@ -49,21 +49,25 @@ return function(game)
   U.log("stadium ready: " .. tostring(StadiumInstall.ready()))
 
   OverworldBattle.setting:setValue("stadium", game)
-  Shiny.setOdds(1)                       -- every encounter, shiny
 
+  -- party FIRST, at ordinary odds: Pokemon.new is where shininess is
+  -- decided, so pinning the odds before this made the player's own Pikachu
+  -- shiny -- and that tints the player's side, which during the intro is the
+  -- trainer sprite. The foe is what these runs are about.
   game.save.player.name = "RED"
   game.save.party = { Pokemon.new(game.data, "PIKACHU", 50) }
+
+  Shiny.setOdds(1)                       -- from here on: every encounter
 
   -- Five outdoor places, deliberately unalike -- a coast, an open route, a
   -- water city, a rocky pass and a wooded shore -- so the recording is five
   -- different-looking fights and not the same meadow five times. Each mon is
   -- put somewhere its colour has something to sit against.
   local RUNS = {
-    { "BLASTOISE",  45, "PALLET_TOWN",   5,  6 },
-    { "PIDGEOTTO",  32, "ROUTE_1",       5,  8 },
-    { "GYARADOS",   45, "CERULEAN_CITY", 10, 12 },
     { "CHARIZARD",  50, "ROUTE_4",       10, 5 },
-    { "NINETALES",  42, "ROUTE_25",      12, 5 },
+    { "ELECTRODE",  40, "VIRIDIAN_CITY", 20, 20 },
+    { "VAPOREON",   42, "ROUTE_25",      12, 5 },
+    { "DRATINI",    30, "ROUTE_3",       10, 5 },
   }
 
   -- a beat before the first one, so a recorder that started with the window
@@ -90,7 +94,7 @@ return function(game)
       game.overworld:pushBattle(battle)
 
       local mon = battle.enemy and battle.enemy.mon
-      U.log(("%d/5  %-10s  %-14s  shiny=%s")
+      U.log(("%d/4  %-10s  %-14s  shiny=%s")
             :format(i, species, map, tostring(Shiny.isShiny(mon))))
 
       -- the arrival, then three seconds of nothing but the Pokemon

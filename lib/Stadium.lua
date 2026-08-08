@@ -423,6 +423,15 @@ function Stadium.update(dt, battle, groundY)
     else
       ShinyFx.setMetrics(side, nil)
     end
+
+    -- and let a waiting sparkle GO, once the fight is actually the thing on
+    -- screen. The battle draws underneath the transition wipe for about a
+    -- second before that, and a burst released then plays out its whole life
+    -- behind it -- armed, drawn, counted, and never seen, which is exactly
+    -- how this looked when it was keyed on the scene drawing instead.
+    local g = game()
+    local top = g and g.stack and g.stack:top()
+    if top == battle then ShinyFx.release(side) end
     mon.visible = (mon.rig ~= nil) and onField(battle, side, mon)
                   and not (battler and battler.substituteHP)
     -- LET'S GO capture mode: the player's model is out of the shot the

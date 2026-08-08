@@ -1108,10 +1108,24 @@ function OverworldBattle.sideTexture(battle, side)
   -- alone, which the engine's both-sides-at-once pic layer cannot do.
   local shinyTint = nil
   do
-    local battler = (side == "player") and battle.player or battle.enemy
-    local g2 = game()
-    shinyTint = battler and V.require("ShinyUI")
-                .tintFor(battler.mon, g2 and g2.data) or nil
+    -- NOT when this side is showing a PERSON. Both sides can be holding a
+    -- trainer pic rather than a Pokemon -- the foe's portrait before the
+    -- send-out, and the player's own back until "Go!" -- and a shiny is a
+    -- fact about a Pokemon, not about its owner. Tinting through it turned
+    -- the player's trainer sprite a different colour for the whole intro,
+    -- which is what a shiny Pokemon in the party looks like if you do not
+    -- ask this question. The two tests are the same ones sideTexture already
+    -- uses to label the finished texture, asked here instead of after.
+    local person = (side == "enemy"
+                    and battle.showEnemyTrainer and battle.trainerPic)
+                or (side == "player"
+                    and battle.showPlayerBack and battle.playerBackPic)
+    if not person then
+      local battler = (side == "player") and battle.player or battle.enemy
+      local g2 = game()
+      shinyTint = battler and V.require("ShinyUI")
+                  .tintFor(battler.mon, g2 and g2.data) or nil
+    end
   end
 
   local ok, err = pcall(function()

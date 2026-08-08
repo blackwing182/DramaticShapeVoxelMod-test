@@ -87,10 +87,17 @@ return function(game)
   end
 
   OverworldBattle.setting:setValue("stadium", game)
-  Shiny.setOdds(1)                       -- this encounter is shiny
 
+  -- THE PARTY IS BUILT FIRST, at ordinary odds, and the roll is only pinned
+  -- afterwards. Pokemon.new is where shininess is decided, so setting the
+  -- odds before this line made the player's own Pikachu shiny too -- and a
+  -- shiny on the player's side tints that side's pic, which during the intro
+  -- is the TRAINER, so the player sprite came out discoloured for the whole
+  -- send-out. The foe is the one this run is about.
   game.save.player.name = "RED"
   game.save.party = { Pokemon.new(game.data, "PIKACHU", 50) }
+
+  Shiny.setOdds(1)                       -- from here on: the encounter
 
   if not game.data.pokemon[SPECIES] then
     U.log("no such species: " .. SPECIES)
@@ -121,6 +128,26 @@ return function(game)
   -- DS_AUTOCLOSE is for checking the pacing without a person in the loop: set
   -- it to a number of seconds and the run should take about that long by the
   -- wall clock, which is the only way to prove 1x is actually 1x.
+  -- DS_SHOTS: capture the ARRIVAL as a strip, for checking that the sparkle
+  -- fires on its own rather than only when a test arms it by hand. This is
+  -- the same code path the capture run uses, which is the point -- the last
+  -- bug here hid precisely because it was verified through a driver that
+  -- armed the effect itself.
+  local shots = os.getenv("DS_SHOTS")
+  if shots then
+    for k = 1, 26 do
+      U.shot(game, ("%s/arrive_%02d.png"):format(shots, k))
+      hold(0.15)
+    end
+    local ShinyFx = lib.require("ShinyFx")
+    local d = ShinyFx.debug or {}
+    U.log(("fx: armed=%s cleared=%s calls=%s noArena=%s noLive=%s quads=%s")
+          :format(tostring(d.armed), tostring(d.cleared), tostring(d.calls),
+                  tostring(d.noArena), tostring(d.noLive), tostring(d.quads)))
+    U.log("arrival strip written to " .. shots)
+    return
+  end
+
   local auto = tonumber(os.getenv("DS_AUTOCLOSE") or "") or 0
   if auto > 0 then
     local t0 = love.timer.getTime()

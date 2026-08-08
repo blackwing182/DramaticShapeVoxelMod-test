@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Five shiny encounters, five outdoor places, one window at a time.
+# Shiny encounters, one per outdoor place, one window at a time.
 #
 #   bash mods/DramaticShapeVoxelMod/tests/shiny_run.sh
 #
@@ -19,12 +19,15 @@ LOVE=${LOVE:-/c/Program Files/LOVE/lovec.exe}
 DRIVER=mods/DramaticShapeVoxelMod/tests/shiny_one.lua
 
 # species | level | map | cell x | cell y
+#
+# Each in its own outdoor place so no two takes look alike. A species
+# or map this dataset does not have is skipped with a line rather than
+# failing the run, so trimming this list is just deleting rows.
 RUNS=(
-  "BLASTOISE|45|PALLET_TOWN|5|6"
-  "PIDGEOTTO|32|ROUTE_1|5|8"
-  "GYARADOS|45|CERULEAN_CITY|10|12"
   "CHARIZARD|50|ROUTE_4|10|5"
-  "NINETALES|42|ROUTE_25|12|5"
+  "ELECTRODE|40|VIRIDIAN_CITY|20|20"
+  "VAPOREON|42|ROUTE_25|12|5"
+  "DRATINI|30|ROUTE_3|10|5"
 )
 
 OPTS="$APPDATA/LOVE/pokemon-love2d/options.lua"
@@ -38,7 +41,7 @@ for row in "${RUNS[@]}"; do
   i=$((i + 1))
   IFS='|' read -r SPECIES LEVEL MAP CX CY <<< "$row"
   echo ""
-  echo "=== $i/5  $SPECIES  at  $MAP  ==="
+  echo "=== $i/${#RUNS[@]}  $SPECIES  at  $MAP  ==="
   echo "    close the window when you are done recording it"
   DS_SPECIES="$SPECIES" DS_LEVEL="$LEVEL" DS_MAP="$MAP" \
   DS_CX="$CX" DS_CY="$CY" \
@@ -53,4 +56,4 @@ if [ -f "$OPTS.shiny_run_backup" ]; then
   echo "options.lua restored"
 fi
 
-echo "done -- five encounters"
+echo "done -- ${#RUNS[@]} encounters"
