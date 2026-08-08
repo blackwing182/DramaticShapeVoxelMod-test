@@ -412,6 +412,17 @@ function Stadium.update(dt, battle, groundY)
     -- the battle (see StadiumPack.keep). The shiny flag rides along: the
     -- shiny and normal models are separate cache entries.
     if mon.species then StadiumPack.keep(mon.species, mon.shiny) end
+
+    -- how big this Pokemon actually is, so a shiny's sparkle can be sized to
+    -- it rather than to a constant that is wrong for most of the dex (see
+    -- the header of ShinyFx). Pushed every frame: the model can arrive a
+    -- frame or two after the burst is armed, and a send-out is still growing
+    -- while it plays.
+    if mon.rig and mon.model then
+      ShinyFx.setMetrics(side, mon:worldHeight(), mon:worldRadius())
+    else
+      ShinyFx.setMetrics(side, nil)
+    end
     mon.visible = (mon.rig ~= nil) and onField(battle, side, mon)
                   and not (battler and battler.substituteHP)
     -- LET'S GO capture mode: the player's model is out of the shot the

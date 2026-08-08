@@ -40,20 +40,58 @@ local BattleBillboard = V.require("BattleBillboard")
 
 local ShinyFx = {}
 
+local max, min = math.max, math.min
+
 -- ------- shape and timing
 
--- Sized against the mon CARD, which is what a Pokemon occupies here: a card
--- is BattleBillboard.FULL_W / FULL_PIC * GB_W units across, i.e. about 46
--- wide and 41 tall. The first version of this was built to numbers a tenth
--- of that and drew sixty quads a frame that nobody could see -- a ring seven
--- units across, inside a Gyarados.
+-- ------- sized to the Pokemon, not to a constant
+--
+-- A Pokemon on the map is between 5 and 18 world pixels tall
+-- (StadiumMon.MIN_HEIGHT/MAX_HEIGHT, REF_HEIGHT 14) and roughly its own
+-- radius wide. Every earlier attempt here used flat numbers and every one of
+-- them was wrong for most of the dex: first a ring 7 units across, which sat
+-- INSIDE anything bigger than a Rattata and was depth-rejected; then, over-
+-- correcting, a ring 24 across starting 20 units up -- taller than the
+-- tallest Pokemon there is, so it hung in the sky above a Ponyta with
+-- nothing under it.
+--
+-- One ring cannot fit a Diglett and a Gyarados. The burst is therefore a
+-- FRACTION of the mon it belongs to: Stadium hands us each side's
+-- worldHeight and worldRadius (StadiumMon has them, and worldRadius exists
+-- precisely so "a caller can size something to its footprint"), and every
+-- distance below is measured off those.
 ShinyFx.LIFE = 0.75          -- seconds from spring to gone
 ShinyFx.STARS = 10           -- around the ring
-ShinyFx.RISE = 14            -- world units the ring climbs over its life
-ShinyFx.SPREAD = 24          -- how far out the ring opens -- wider than the
-                             -- body, or the stars are inside the Pokemon
-ShinyFx.CHEST = 20           -- height above the tile the burst starts at
-ShinyFx.SIZE = 7             -- a star's world size at full brightness
+
+ShinyFx.CHEST_FRAC = 0.50    -- up the body: the ring is centred on the
+                             -- Pokemon, not perched above or below it
+ShinyFx.RISE_FRAC = 0.16     -- of its height, drifted up over the burst
+ShinyFx.SIZE_FRAC = 0.20     -- a star, as a fraction of the mon's height
+
+-- THE RING IS AN ELLIPSE AROUND THE SILHOUETTE, with its two axes measured
+-- separately. A single radius cannot do this: flattened enough to look like
+-- a ring seen from the battle's low seat, its vertical reach ends up a third
+-- of the body's height, so the top and bottom stars sit ON the Pokemon. The
+-- horizontal axis clears its width, the vertical axis clears its height.
+ShinyFx.RING_X_FRAC = 1.50   -- of the mon's RADIUS -- just outside its width
+ShinyFx.RING_X_MIN = 0.34    -- ...but never narrower than this of its height,
+                             -- for the thin ones (Onix, Ekans) whose radius
+                             -- alone would put the ring inside them
+ShinyFx.RING_Y_FRAC = 0.62   -- of its HEIGHT -- so the ring reaches its
+                             -- shoulders and its feet, not just its middle
+
+-- The burst OPENS from here rather than from nothing. Springing out of a
+-- point means every star spends the first frames stacked at the centre --
+-- which is the middle of the Pokemon, and reads exactly like the sparkles
+-- being stuck inside it. Starting already clear of the body and expanding
+-- the rest of the way keeps them outside for the whole life of the effect.
+ShinyFx.RING_START = 0.72
+
+-- What a side with no model gets: the flat-pic rung, where a pic stands
+-- FULL_W (16) units wide in a card. Close enough to a median Pokemon that
+-- the same fractions land sensibly.
+ShinyFx.DEFAULT_HEIGHT = 14
+ShinyFx.DEFAULT_RADIUS = 6
 
 -- Additive drawing keeps the depth TEST (Voxel3D.blend sets lequal with
 -- writes off), so a star level with the model is rejected by it however
@@ -63,6 +101,21 @@ ShinyFx.PULL_BONUS = 6
 
 -- one per side, nil when nothing is playing
 local live = { player = nil, enemy = nil }
+
+-- How big the Pokemon on each side actually is, pushed in by Stadium.update
+-- every frame it has a model. Kept here rather than reached for, because
+-- ShinyFx is drawn from BattleScene and asking Stadium from inside it would
+-- close a require loop between the three.
+local size = { player = nil, enemy = nil }
+
+-- world pixels, from StadiumMon:worldHeight/worldRadius. Pass nil height to
+-- say "no model on this side" -- the flat-pic rung, which falls back to the
+-- defaults above.
+function ShinyFx.setMetrics(side, height, radius)
+  if side ~= "player" and side ~= "enemy" then return end
+  if not (height and height > 0) then size[side] = nil return end
+  size[side] = { h = height, r = radius or 0 }
+end
 local star = nil             -- the generated star image, built once
 
 -- ------- the star
@@ -174,7 +227,18 @@ function ShinyFx.draw(arena, groundY, pull)
       local alpha = 1 - u * u
       local x, z = cell[1], cell[2]
       local yaw = BattleBillboard.yawToward(x, z, Voxel3D.eye)
-      local baseY = groundY + ShinyFx.CHEST + ShinyFx.RISE * e
+
+      -- every distance measured off THIS Pokemon (see the header)
+      local m = size[side]
+      local mh = (m and m.h) or ShinyFx.DEFAULT_HEIGHT
+      local mr = (m and m.r and m.r > 0 and m.r) or ShinyFx.DEFAULT_RADIUS
+      local ringX = max(mr * ShinyFx.RING_X_FRAC, mh * ShinyFx.RING_X_MIN)
+      local ringY = mh * ShinyFx.RING_Y_FRAC
+      local starK = mh * ShinyFx.SIZE_FRAC
+      -- open from clear of the body, not from a point (see RING_START)
+      local grow = ShinyFx.RING_START + (1 - ShinyFx.RING_START) * e
+      local baseY = groundY + mh * ShinyFx.CHEST_FRAC
+                    + mh * ShinyFx.RISE_FRAC * e
 
       if not drew then
         Voxel3D.blend("add")
@@ -188,12 +252,11 @@ function ShinyFx.draw(arena, groundY, pull)
         -- twinkle in lockstep when both are shiny
         local a = (i / ShinyFx.STARS) * math.pi * 2
                   + (side == "player" and 0.31 or 0)
-        local r = ShinyFx.SPREAD * e
         -- stars shrink as they fade, and alternate size so the ring reads
         -- as scattered rather than as a cog
-        local k = ShinyFx.SIZE * (1 - u * 0.6) * ((i % 2 == 0) and 0.7 or 1)
-        local ox = math.cos(a) * r
-        local oy = math.sin(a) * r * 0.55   -- flattened: we look from low
+        local k = starK * (1 - u * 0.6) * ((i % 2 == 0) and 0.7 or 1)
+        local ox = math.cos(a) * ringX * grow
+        local oy = math.sin(a) * ringY * grow
         local m = Mat4.mul(
           Mat4.mul(Mat4.translate(x, baseY, z), Mat4.rotateY(yaw)),
           Mat4.mul(Mat4.translate(ox, oy, 0), Mat4.scale(k, k, 1)))
