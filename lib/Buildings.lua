@@ -1633,7 +1633,13 @@ end
 -- The south face is skipped whether or not it is drawn: it is the one face
 -- the drawing states in full, so anything it needs it already has.
 local function sideDoorsAt(map, tileset, tx, ty, bw, bh)
-  local defs = _G.Game and Game.data and Game.data.maps
+  -- through the module, NOT a global: `Game` is a local everywhere in the
+  -- engine (`local Game = require("src.core.Game")` in a dozen files) and
+  -- reading `_G.Game` came back nil every time -- which fails silently and
+  -- exactly like the feature being off, because a nil map table is also
+  -- what a headless build legitimately has.
+  local ok, G = pcall(require, "src.core.Game")
+  local defs = ok and G and G.data and G.data.maps
   local warps = map.def and map.def.warps
   if not (defs and warps and warps[1]) then return nil end
   if not Buildings.sideDoorCell(tileset.id) then return nil end
