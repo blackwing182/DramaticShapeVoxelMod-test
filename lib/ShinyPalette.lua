@@ -355,6 +355,32 @@ function ShinyPalette.tintFor(dex)
   return t
 end
 
+-- A transform for PALETTE colours rather than texture texels.
+--
+-- The two are not the same job, and using the texel transform on a palette
+-- quietly does nothing for five species. A lookup table answers only the
+-- colours that are in it -- the ones its model is painted with -- and the
+-- engine's ADVANCED palettes are a different set of colours entirely
+-- (BLUEMON's blue is not any blue on the Gyarados model). Asked to shift a
+-- palette, the table therefore returns it unchanged, and the most dramatic
+-- shiny in the game comes out identical.
+--
+-- So: slide species use the slide, which is defined on all colours. Table
+-- species fall back to their tint multiplier, which IS derived from the
+-- table and does carry its direction.
+function ShinyPalette.paletteTransform(dex)
+  local spec = ShinyPalette.forDex(dex)
+  if not spec then return nil end
+  if not spec.lut then return ShinyPalette.transform(spec) end
+  local t = ShinyPalette.tintFor(dex)
+  if not t then return nil end
+  return function(r, g, b)
+    return floor(min(255, r * t[1]) + 0.5),
+           floor(min(255, g * t[2]) + 0.5),
+           floor(min(255, b * t[3]) + 0.5)
+  end
+end
+
 -- ------- the pass over one species' whole texture array
 
 -- Recolour `textures` in place, skipping the ones that must not move.
