@@ -121,9 +121,27 @@ return function(game)
   battle.onFinish = function() end
   game.overworld:pushBattle(battle)
 
+  -- ------- start the shot wider
+  --
+  -- BattleCam.zoom is a multiple of the rig's own frame height, so ABOVE one
+  -- is zoomed OUT -- "the fight in its own landscape", per the note on the
+  -- constants. 1.15 is fifteen percent wider, which happens to be exactly
+  -- one notch of the player's own wheel (ZOOM_STEP).
+  --
+  -- Set AFTER the battle is pushed, because OverworldBattle's begin path
+  -- calls BattleCam.reset() and that puts zoom and zoomGoal back to 1. Both
+  -- are set, not just the goal: leaving the goal alone would make the shot
+  -- glide outward over the first fifth of a second, and this wants to OPEN
+  -- wide rather than pull back once the recording has started.
+  local DS_ZOOM = tonumber(os.getenv("DS_ZOOM") or "") or 1.15
+  local okCam, BattleCam = pcall(lib.require, "BattleCam")
+  if okCam and BattleCam then
+    BattleCam.zoom, BattleCam.zoomGoal = DS_ZOOM, DS_ZOOM
+  end
+
   local mon = battle.enemy and battle.enemy.mon
-  U.log(("%s at %s -- shiny=%s   (1x; close the window for the next one)")
-        :format(SPECIES, MAP, tostring(Shiny.isShiny(mon))))
+  U.log(("%s at %s -- shiny=%s zoom=%.2f  (1x; close the window when done)")
+        :format(SPECIES, MAP, tostring(Shiny.isShiny(mon)), DS_ZOOM))
 
   -- The battle stays up, at 1x, until the window is closed by hand. No taps:
   -- the recording should be the Pokemon standing there, not a text box being
