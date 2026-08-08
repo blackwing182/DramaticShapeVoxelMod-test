@@ -89,7 +89,14 @@ local SHADER = [[
   varying vec3 vSun;          // this fragment's place in the sun's view
   varying float vFog;         // how deep into the map's haze it stands
   varying float vFirefly;     // zero normally, night glow on firefly cards
-  uniform float fireflyNight; // shared safely by vertex and pixel stages
+  // Explicitly qualified, and it has to be: an unqualified float takes each
+  // STAGE's default precision, and those do not agree -- highp in the vertex
+  // stage, mediump in the fragment one.  LOVE 11 linked the pair anyway;
+  // LOVE 12 holds both declarations to the same qualifier and refuses the
+  // whole shader over it, which costs the entire 3D pass -- Voxel3D.available()
+  // is a shader that compiled, and the overworld falls back to flat 2D with
+  // nothing said anywhere.  Same macro the varyings below already use.
+  uniform LOVE_HIGHP_OR_MEDIUMP float fireflyNight;
 #ifdef VOXEL_CULL
   // where this fragment stands in the FLAT world, for the diorama's
   // viewport to measure. Same precision reasoning as vGrid below: a
