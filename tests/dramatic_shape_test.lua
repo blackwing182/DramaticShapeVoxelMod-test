@@ -6709,6 +6709,44 @@ end)()
                                mon = { level = 100 } }, 1) >= 1,
     "a trivial catch still pays at least one point")
 
+  -- ------- the capture seat speaks the pull's own language
+  --
+  -- The seat hands BattleScene a pitch, and the only thing downstream reads
+  -- it is the camera-ward pull the grass and flowers are drawn with. That
+  -- angle is measured off STRAIGHT DOWN -- Voxel.angle's convention, and
+  -- BattleCam.rig's -- and this rig used to answer the DEPRESSION below
+  -- level instead, which is its complement. A seat looking nearly level
+  -- therefore read as "straight down", the end of the ladder where the pull
+  -- is at its longest: 46 world pixels of bias handed to a camera standing
+  -- 46 world pixels behind the player. The pull is a shove along each
+  -- vertex's own eye ray, so at that range it carried the grass at the eye
+  -- THROUGH the lens, and a tuft landed smeared across the top of the frame.
+  do
+    local CatchThrow = lib.require("CatchThrow")
+    local BattleCam = lib.require("BattleCam")
+    local VoxelScene = lib.require("VoxelScene")
+    -- two mons two cells apart, the arena laid down unturned
+    local arena = { player = { 100, 200 }, enemy = { 100, 168 },
+                    mid = { 100, 184 }, turn = 0 }
+    local seat, pitch = CatchThrow._rig(arena, 0)
+    T.check(pitch > math.rad(75),
+      ("the capture seat reads as NEARLY LEVEL (%.1f degrees off straight "
+       .. "down), which is what it is"):format(math.deg(pitch)))
+    local _, camPitch = BattleCam.rig(arena, 0, true)
+    T.check(camPitch > math.rad(45) and pitch > math.rad(45),
+      "in the same convention the battle's own rig hands back, so one pull "
+      .. "formula can serve both seats")
+    -- the invariant the bug broke: a bias along the eye ray must never
+    -- reach the eye, or the vertex comes out behind the lens
+    local dx, dz = seat.eye[1] - arena.player[1], seat.eye[3] - arena.player[2]
+    local range = math.sqrt(dx * dx + dz * dz)
+    T.check(VoxelScene.pull(math.max(pitch, 0.05)) < range * 0.5,
+      ("the grass pull (%.1f px) stays well inside the seat's own range to "
+       .. "the player's cell (%.1f px) -- the tufts it is biasing are the "
+       .. "ones standing right there")
+        :format(VoxelScene.pull(math.max(pitch, 0.05)), range))
+  end
+
   -- and the same formula pays TRAINER knockouts under FULL, with the
   -- wild/trainer 1.5 that a catch never sees (a caught Pokemon is always
   -- wild, which is why the catch numbers above are untouched by it)

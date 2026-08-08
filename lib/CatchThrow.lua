@@ -332,9 +332,25 @@ local function captureRig(arena, groundY)
     focus = { ex, groundY + 8, ez },
     fov = SEAT_FOV,
   }
-  -- the pitch VoxelScene.pull wants: how far below level the seat looks
-  local pitch = math.atan2(SEAT_UP - 8, back + l)
-  return cam, math.max(pitch, 0.05), SEAT_FRAME
+  -- The pitch VoxelScene.pull wants, and it is the angle off STRAIGHT DOWN
+  -- -- the convention Voxel.angle keeps and BattleCam.rig hands back
+  -- (atan2(horizontal run, height over the focus)). This used to answer the
+  -- DEPRESSION below level instead, which is that angle's complement, and
+  -- the two are as far apart as a camera can be: a seat looking nearly
+  -- level read as 0.06 radians, which is what the pull formula means by
+  -- LOOKING STRAIGHT DOWN, so the grass and the flowers were pulled 46
+  -- world pixels camera-ward instead of 6.
+  --
+  -- 46 is the whole distance this seat stands behind the player. The pull
+  -- is a bias along each vertex's own eye ray, harmless while it is short
+  -- of the range -- and past it, it drags geometry THROUGH the lens, where
+  -- the projection turns inside out and one tuft of grass at the eye smears
+  -- across the frame. That was the greenery hanging over the top of a
+  -- capture shot, on a route or a city street with grass rows either side.
+  -- (Voxel3D's vertex stage now clamps the pull to half the range as well,
+  -- so no camera this close can be smeared by a bias again.)
+  local pitch = math.atan2(back + l, math.max(1e-3, SEAT_UP - 8))
+  return cam, pitch, SEAT_FRAME
 end
 
 -- The ring in GB space, centred on the CREATURE. The pinned mark is the
@@ -1062,6 +1078,12 @@ CatchThrow.pickBall = function()
   end
   return owned[1]
 end
+
+-- The seat, named for the suite: it is a pure function of the arena and the
+-- floor height, so the framing and -- the reason it is reachable at all --
+-- the PITCH convention it hands BattleScene can both be asserted without a
+-- battle, a canvas or a game.
+CatchThrow._rig = captureRig
 
 -- ------- session lifecycle
 

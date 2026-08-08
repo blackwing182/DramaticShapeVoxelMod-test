@@ -579,7 +579,14 @@ function BattleScene.render(state, arena, textures, token)
   local cap = BattleScene.capture
   if cap and cap.rig then
     local okRig, c, p, fh = pcall(cap.rig, arena, groundY)
-    if okRig and c then cam, pitch, capFrameH = c, p or 0.15, fh end
+    -- The pitch is off STRAIGHT DOWN, like Voxel.angle and like the one
+    -- BattleCam.rig hands back -- the only thing downstream reads it is the
+    -- grass and flower pull below. A seat that declines to say stands in
+    -- for a near-LEVEL one rather than a top-down one, which is what every
+    -- staged seat actually is: the pull grows toward straight down, and a
+    -- default that guessed the wrong end of that would spend tens of world
+    -- pixels of bias on a camera standing two cells from its subject.
+    if okRig and c then cam, pitch, capFrameH = c, p or math.rad(80), fh end
   end
   if not cam then cam, pitch = BattleCam.rig(arena, groundY) end
   cam.fov = BattleScene.letterboxFov(cam.fov, ph, s)
