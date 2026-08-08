@@ -51,6 +51,9 @@ function V.require(name)
   return loaded[name]
 end
 V.mod = { log = { warn = function() end, info = function() end } }
+-- the mod's own directory, so a module that loads a data file finds it
+-- relative to the MOD rather than to wherever this was run from
+V.path = MOD
 
 local StadiumRom = V.require("StadiumRom")
 local StadiumBuild = V.require("StadiumBuild")
@@ -149,6 +152,16 @@ io.write(("\n%d checked, %d identical, %d differ, %d oracle files missing, "
                  failed, os.clock() - t0))
 io.write(("shiny: %d recoloured, %d without a variant, %d malformed\n")
          :format(shinyOk, shinyMissing, shinyBad))
+
+-- NONE recoloured is a failure, not a quiet zero. It is what a missing or
+-- unfindable data/shiny_colors.lua looks like, and the first version of this
+-- test reported PASS through exactly that: 151 species built, every one of
+-- them without a shiny variant, and nothing in the output that read as
+-- wrong. A count of zero is now as loud as a malformed pack.
+if checked > 0 and shinyOk == 0 then
+  io.write("NO SPECIES RECOLOURED -- data/shiny_colors.lua was not found\n")
+  shinyBad = shinyBad + 1
+end
 
 -- The oracle diff is the load-bearing assertion and is unchanged: the shiny
 -- pass must not have moved a single byte of the normal packs. The shiny

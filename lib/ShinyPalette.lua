@@ -168,8 +168,16 @@ local function loadColors()
     local ok, t = pcall(V.data, "shiny_colors")
     if ok and type(t) == "table" then colors = t; return colors end
   end
-  local tries = { "data/shiny_colors.lua",
-                  "mods/DramaticShapeVoxelMod/data/shiny_colors.lua" }
+  -- Off disk, RELATIVE TO THE MOD rather than to the working directory.
+  -- V.path is the mod's own directory (main.lua sets it; the headless
+  -- harnesses set it to whatever --mod they were given). Guessing from the
+  -- cwd instead is what made this silently find nothing when the extraction
+  -- test was run from the project root rather than from the mod: every
+  -- species built, none recoloured, and a PASS at the end of it.
+  local tries = {}
+  if V and V.path then tries[#tries + 1] = V.path .. "/data/shiny_colors.lua" end
+  tries[#tries + 1] = "data/shiny_colors.lua"
+  tries[#tries + 1] = "mods/DramaticShapeVoxelMod/data/shiny_colors.lua"
   for _, p in ipairs(tries) do
     local chunk = loadfile(p)
     if chunk then
@@ -179,6 +187,13 @@ local function loadColors()
   end
   colors = false          -- cache the miss; do not retry the disk per species
   return nil
+end
+
+-- Whether the colour table was found at all. The extraction asks so it can
+-- say "no colours" once and loudly, rather than reporting 151 successful
+-- builds with no shiny variant among them.
+function ShinyPalette.haveColors()
+  return loadColors() ~= nil
 end
 
 -- The spec for one dex number, or nil if we have nothing for it.
