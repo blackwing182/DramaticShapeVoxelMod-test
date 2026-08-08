@@ -1,11 +1,16 @@
 -- The Lua ROM extractor, against the Python packer that is its oracle.
 --
 --   luajit mods/DramaticShapeVoxelMod/tests/stadium_extract_test.lua \
---          [--rom=PATH] [--oracle=DIR] [--only=25,6] [--out=DIR]
+--          [--rom=PATH] [--oracle=DIR] [--only=25,6] [--out=DIR] [--mod=DIR]
 --
 -- Run from the PROJECT ROOT. Defaults: the ROM under
 -- model_extract/baseroms/, the oracle in assets/stadium (whatever
 -- tools/stadium_pack.py last wrote there).
+--
+-- --mod points at the mod directory whose lib/ is under test. It exists for
+-- worktrees: the ROM and the packs are both gitignored, so a worktree has
+-- neither, and without this the test would load the SHARED checkout's
+-- modules while claiming to test the branch's.
 --
 -- ------- what this is for
 --
@@ -30,7 +35,7 @@ for _, a in ipairs({ ... }) do
   if k then args[k] = v else args[a:gsub("^%-%-", "")] = true end
 end
 
-local MOD = "mods/DramaticShapeVoxelMod"
+local MOD = args.mod or "mods/DramaticShapeVoxelMod"
 local ROM = args.rom or (MOD .. "/model_extract/baseroms/us/baserom.z64")
 local ORACLE = args.oracle or (MOD .. "/assets/stadium")
 
@@ -46,6 +51,9 @@ function V.require(name)
   return loaded[name]
 end
 V.mod = { log = { warn = function() end, info = function() end } }
+-- the mod's own directory, so a module that loads a data file finds it
+-- relative to the MOD rather than to wherever this was run from
+V.path = MOD
 
 local StadiumRom = V.require("StadiumRom")
 local StadiumBuild = V.require("StadiumBuild")
@@ -79,6 +87,7 @@ if args.only then
 end
 
 local checked, matched, missing, failed = 0, 0, 0, 0
+local shinyOk, shinyMissing, shinyBad = 0, 0, 0
 local firstBad = nil
 local t0 = os.clock()
 
@@ -93,6 +102,28 @@ for fileno = 0, StadiumRom.N_POKEMON - 1 do
     if args.out then
       local fp = io.open(("%s/%03d.dsm"):format(args.out, res.species), "wb")
       if fp then fp:write(res.bytes) fp:close() end
+      -- the shiny variant too, so the pair can be diffed out of process
+      if res.shinyBytes then
+        local sp = io.open(("%s/%03ds.dsm"):format(args.out, res.species), "wb")
+        if sp then sp:write(res.shinyBytes) sp:close() end
+      end
+    end
+    -- The shiny pack is the same DSM3 with recoloured texels, so it must be
+    -- exactly as long and must actually differ. A species that produced none
+    -- is counted rather than failed: it ships without a recolour and the
+    -- runtime falls back to its normal model.
+    if not res.shinyBytes then
+      shinyMissing = shinyMissing + 1
+    elseif #res.shinyBytes ~= #res.bytes then
+      shinyBad = shinyBad + 1
+      io.write(("species %d: shiny pack is %d bytes, normal is %d\n")
+               :format(res.species, #res.shinyBytes, #res.bytes))
+    elseif res.shinyBytes == res.bytes then
+      shinyBad = shinyBad + 1
+      io.write(("species %d: shiny pack is identical to normal\n")
+               :format(res.species))
+    else
+      shinyOk = shinyOk + 1
     end
     local want = readFile(("%s/%03d.dsm"):format(ORACLE, res.species))
     if not want then
@@ -119,8 +150,24 @@ io.write(("\n%d checked, %d identical, %d differ, %d oracle files missing, "
           .. "%d extractions failed  (%.1fs)\n")
          :format(checked, matched, checked - matched - missing, missing,
                  failed, os.clock() - t0))
+io.write(("shiny: %d recoloured, %d without a variant, %d malformed\n")
+         :format(shinyOk, shinyMissing, shinyBad))
 
-if matched == checked and failed == 0 and missing == 0 then
+-- NONE recoloured is a failure, not a quiet zero. It is what a missing or
+-- unfindable data/shiny_colors.lua looks like, and the first version of this
+-- test reported PASS through exactly that: 151 species built, every one of
+-- them without a shiny variant, and nothing in the output that read as
+-- wrong. A count of zero is now as loud as a malformed pack.
+if checked > 0 and shinyOk == 0 then
+  io.write("NO SPECIES RECOLOURED -- data/shiny_colors.lua was not found\n")
+  shinyBad = shinyBad + 1
+end
+
+-- The oracle diff is the load-bearing assertion and is unchanged: the shiny
+-- pass must not have moved a single byte of the normal packs. The shiny
+-- counters are additional, and a malformed variant fails the run -- a pack
+-- of the wrong length would be read as a corrupt model at runtime.
+if matched == checked and failed == 0 and missing == 0 and shinyBad == 0 then
   io.write("PASS -- the Lua extractor reproduces the packer exactly\n")
   os.exit(0)
 end

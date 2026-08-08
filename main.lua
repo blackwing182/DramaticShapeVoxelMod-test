@@ -88,6 +88,8 @@ local WorldCurve = V.require("WorldCurve")
 local ViewBox = V.require("ViewBox")
 local OverworldBattle = V.require("OverworldBattle")
 local BattleExit = V.require("BattleExit")
+local ShinyBattle = V.require("ShinyBattle")
+local ShinyUI = V.require("ShinyUI")
 local DayNight = V.require("DayNight")
 local DayTint = V.require("DayTint")
 local Water = V.require("Water")
@@ -1223,6 +1225,39 @@ end
 -- where the reasoning for each one is written down. Installed once, here,
 -- so this file keeps naming every engine seam the mod touches.
 OverworldBattle.install()
+
+-- ------- shiny Pokemon
+--
+-- ON, always, with no row to switch it off: shininess is a property of the
+-- Pokemon rather than a display mode, and a Pokemon that is shiny in one
+-- player's save and not another's is not a Pokemon, it is a setting.
+--
+-- It rests on a fact the engine already ships. Gen 1 has no shininess of its
+-- own, but it has the four DVs Gen 2 reads to decide it, and
+-- src/pokemon/Stats.lua:90 carries that reading -- the engine's own comment
+-- calls it "the RBY virtual shiny" and says it is there for indicator mods.
+-- So nothing new is stored on a Pokemon and nothing has to migrate: every
+-- save ever made already contains the answer, and this only starts drawing
+-- it. See lib/Shiny.lua for why deriving beats storing.
+--
+-- Three seams, each in its own file with its own reasoning:
+--   ShinyBattle  wraps Pokemon.new, which is where every wild, gift,
+--                starter and traded mon is built, so the roll lands before
+--                the sprite is baked
+--   ShinyUI      the battle pics' tint and the status page's mark
+--   ShinyFx      the arrival sparkle (armed from Stadium.update)
+--
+-- The Stadium models need no seam here at all: their recolour happens at
+-- extraction (lib/StadiumBuild.lua), and the battle simply asks for the
+-- shiny pack.
+ShinyBattle.install()
+ShinyUI.install()
+
+-- A save opened for the first time under this mod has shiny Pokemon in it
+-- already -- they always did -- so refresh the cached flag across the party
+-- rather than leaving it absent until each mon next changes.
+mod.events:on("save.loaded", function() ShinyBattle.markParty() end)
+mod.events:on("save.created", function() ShinyBattle.markParty() end)
 
 -- ------- the free-roam rungs' inputs and their walk
 --
