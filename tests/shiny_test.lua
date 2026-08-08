@@ -134,6 +134,33 @@ do
 end
 
 do
+  -- ------- the row on the menu
+  --
+  -- The ladder's first rung is both the default and the fallback, so the
+  -- canonical 1:8192 has to be it: a player who never opens the menu, and a
+  -- corrupted options.lua, must both land on the games' own rate.
+  local s = Shiny.setting
+  eq(s.values[1], 8192, "the ladder starts at the canonical rate")
+  eq(s.labels[1], "1:8192", "and says so in the 1:# the row shows")
+  eq(s.labels[#s.labels], "1:1", "the last rung is every encounter")
+  eq(#s.values, #s.labels, "every rung has a label")
+  for i = 2, #s.values do
+    eq(s.values[i] * 2, s.values[i - 1],
+       ("rung %d is twice as often as the one above"):format(i))
+  end
+
+  -- and the roll READS it. Pulled rather than pushed, so a value written by
+  -- the mod manager's page -- which notifies nobody -- is seen too.
+  local before = s:read()
+  s:setValue(512)
+  Shiny.unpinOdds()
+  eq(Shiny.odds(), 512, "the roll follows the row without being told")
+  eq(Shiny.ODDS_DENOM, 512, "and the live field is written through")
+  s:setIndex(before)
+  Shiny.setOdds(8192)          -- and pinned again, for the blocks below
+end
+
+do
   -- stats must follow the DVs, and a full-health mon must stay full: a wild
   -- mon that appears at less than full HP is visible in the first frame
   local Data = require("src.core.Data")

@@ -192,6 +192,22 @@ function SettingsMenu.rows(catId, game)
         out[#out + 1] = row
       end
     end
+    -- ------- settings that belong to no category
+    --
+    -- A row can name SettingsMenu.ROOT as its `cat` and sit on the top-level
+    -- menu next to the pipeline rows. For a setting that is about the GAME
+    -- rather than about one of the four things the categories are for --
+    -- SHINY ODDS is the first -- burying it under a heading it does not
+    -- belong to is worse than the flat list this menu was built to end.
+    --
+    -- Above the categories, because these are rows you CHANGE and those are
+    -- rows you OPEN: everything with a value on it stays together at the top
+    -- of the screen, and the "..." rows read as the way further in.
+    for _, entry in ipairs(settings) do
+      if entry.cat == SettingsMenu.ROOT and offered(entry, full) then
+        out[#out + 1] = entry[1]:row()
+      end
+    end
     for _, cat in ipairs(SettingsMenu.CATEGORIES) do
       local kids = SettingsMenu.rows(cat.id, game)
       -- An EMPTY category is not offered. This is the whole of what makes

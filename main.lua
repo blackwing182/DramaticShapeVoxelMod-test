@@ -88,6 +88,7 @@ local WorldCurve = V.require("WorldCurve")
 local ViewBox = V.require("ViewBox")
 local OverworldBattle = V.require("OverworldBattle")
 local BattleExit = V.require("BattleExit")
+local Shiny = V.require("Shiny")
 local ShinyBattle = V.require("ShinyBattle")
 local ShinyUI = V.require("ShinyUI")
 local DayNight = V.require("DayNight")
@@ -471,6 +472,21 @@ end
 --         its own: 3D WORLD is exactly the rows WITHOUT it, so that whole
 --         category empties out under FULL and takes itself off the menu.
 local SETTINGS = {
+  -- ------- the top-level menu -- settings that are about the GAME
+  --
+  -- SettingsMenu.ROOT as a `cat` puts a row on the DRAMATIC SHAPE screen
+  -- itself rather than inside one of the four categories, which is right
+  -- here: the categories are the diorama, the fights, what the look costs
+  -- and the headset, and how often a shiny appears is none of those.
+  --
+  -- `full` for the battle rows' reason: FULL is a preset for the LOOK, and
+  -- an encounter rate is a rule of the game. A player inside FULL must be
+  -- able to reach it, and FULL must never set it.
+  { Shiny.setting,
+    "How often a wild Pokemon turns up shiny. 1:8192 is the games' own "
+    .. "rate, and every rung below it is twice as often as the one above.",
+    cat = SettingsMenu.ROOT, full = true },
+
   -- ------- 3D WORLD -- the diorama's own knobs, every one of them FULL's
   { VoxelGrid.setting, "One-pixel wireframe along every voxel edge.",
     cat = "world" },
@@ -529,8 +545,8 @@ local SETTINGS = {
   -- `full` for the AA reason: additive shafts are fill rate, and under 4X
   -- supersampling that is a question about the hardware, not the look.
   { ForestAtmos.setting,
-    "Haze and light shafts in the deep woods, with pollen in the beams by "
-    .. "day and fireflies over tall grass at night.",
+    "Haze and volumetric light shafts in the deep woods, with pollen in the "
+    .. "beams by day and fireflies at night.",
     cat = "perf", full = true },
   -- `full` on AA's reasoning below, and for the same reason: the sun's pass
   -- is the most expensive thing in the frame after the geometry, so this is

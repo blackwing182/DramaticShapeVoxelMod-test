@@ -42,6 +42,8 @@ local V = ...
 -- src.pokemon.Stats precisely so an indicator mod can call isShiny
 local Stats = require("src.pokemon.Stats")
 
+local ModSetting = V.require("ModSetting")
+
 local Shiny = {}
 
 -- ------- the odds
@@ -59,15 +61,73 @@ local Shiny = {}
 -- the number says.
 Shiny.ODDS_DENOM = 8192
 
--- Set the denominator. Guards the degenerate values because a 0 or a
--- negative here would divide-by-zero or make every encounter shiny by
--- accident rather than by choice; 1 (always shiny) stays reachable because
--- it is genuinely useful for walking the whole model set.
+-- ------- the row the player cycles
+--
+-- A ladder that HALVES, so every step is exactly "twice as often as the one
+-- above it" and the label says the whole truth -- 1:8192 down to 1:1. The
+-- rate is what the number says, not an approximation of it, because the
+-- miss branch of decide() closes the natural 1/8192 (see above); a rung of
+-- 1:2 really is every other encounter.
+--
+-- values[1] is 8192: ModSetting treats the first rung as both the DEFAULT
+-- and the fallback for an unreadable or unrecognised stored value, so the
+-- canonical rate is what a player who never opens the menu gets and what a
+-- corrupted options.lua comes back to.
+--
+-- No rung RARER than 8192. The mod's promise is that its default is not a
+-- change to the game; making the game harder than it ships is a different
+-- promise and nobody asked for it.
+local ODDS = { 8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1 }
+
+local ODDS_LABELS = {}
+for i, n in ipairs(ODDS) do ODDS_LABELS[i] = "1:" .. n end
+
+Shiny.setting = ModSetting.new("shinyOdds", "SHINY ODDS", ODDS, ODDS_LABELS)
+
+-- ------- the setting is PULLED, not pushed
+--
+-- decide() asks this every roll rather than the menu telling us when it
+-- changed. Two writers exist -- the OPTIONS row and the mod manager's own
+-- settings page -- and only the first has a change hook to hang on; the
+-- manager writes through mod.options and calls ModSetting:sync, which
+-- notifies nothing. Pulling is the only way both are seen, and the cost is
+-- a table read on an event that happens once per encounter.
+--
+-- ODDS_DENOM stays the live value and is written through on every ask, so
+-- anything already reading that field keeps reading the truth.
+local pinned = false
+
+function Shiny.odds()
+  if not pinned then
+    local ok, value = pcall(Shiny.setting.get, Shiny.setting)
+    local n = ok and tonumber(value)
+    if n and n >= 1 then Shiny.ODDS_DENOM = math.floor(n) end
+  end
+  return Shiny.ODDS_DENOM
+end
+
+-- Set the denominator BY HAND, which also PINS it: a driver or a test that
+-- has asked for 1:1 means it, and must not have the next roll quietly put
+-- back to whatever the player left on the menu. Nothing in the game calls
+-- this -- the row is how a player changes the rate.
+--
+-- Guards the degenerate values because a 0 or a negative here would
+-- divide-by-zero or make every encounter shiny by accident rather than by
+-- choice; 1 (always shiny) stays reachable because it is genuinely useful
+-- for walking the whole model set.
 function Shiny.setOdds(denom)
   denom = tonumber(denom)
   if not denom or denom < 1 then return Shiny.ODDS_DENOM end
   Shiny.ODDS_DENOM = math.floor(denom)
+  pinned = true
   return Shiny.ODDS_DENOM
+end
+
+-- Hand the row back control, for a test that pinned the odds and wants the
+-- setting to mean something again afterwards.
+function Shiny.unpinOdds()
+  pinned = false
+  return Shiny.odds()
 end
 
 -- ------- reading it
@@ -205,7 +265,7 @@ function Shiny.decide(mon, rng)
   -- same shape as love.math.random(lo, hi), so a caller can pass that or a
   -- stub and the call below reads identically either way
   rng = rng or function(_lo, hi) return roll(hi) end
-  local hit = rng(1, Shiny.ODDS_DENOM) == 1
+  local hit = rng(1, Shiny.odds()) == 1
 
   if hit then
     forceShiny(mon.dvs)

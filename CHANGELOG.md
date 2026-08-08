@@ -4,57 +4,6 @@
 
 ### Added
 
-- **Fireflies over tall grass, on every outdoor map.** Viridian Forest has
-  had them since 1.6.2 -- blinking green motes low in the air, dealt over
-  the forest's whole volume as part of its atmosphere. They now come out
-  over TALL GRASS anywhere the hour reaches: a route at midnight has
-  lights loose over its grass and none over the road beside it.
-
-  The same particle, moved rather than rebuilt. Same mesh format, same
-  blinking shader, same one ramp off the day/night clock -- so they come
-  on through dusk and reach full contrast at deepest night exactly when
-  the forest's do, because it is the same function answering (pulled out
-  of `ForestAtmos.frame` as `fireflyLevel` so the two cannot drift
-  apart). What changed is where they are dealt.
-
-  **Grass is the entry.** `data/map_atmosphere.lua` is still the opt-in
-  for fog and god rays, and still names one map; the grass fireflies need
-  no line in it. Each map is scanned once for the cells the engine's own
-  `isGrassCell` calls tall grass -- the collision tile, the rule that
-  decides where a wild battle starts, and the same test `Structures`
-  passes before it sprouts a tuft. Going by the grass GRAPHIC instead
-  would hang lights over town plazas, where the same art turns up as
-  decorative filler inside ordinary ground blocks. Roughly four fireflies
-  to five grass cells, capped at 200 a map; an atmosphere entry may tune
-  both through a `grassFlies` row. A map with no grass on it deals none
-  and costs one scan.
-
-  They are dealt INTO a cell rather than at its middle, and the shader's
-  existing wander carries each about a cell's width from where it was
-  dealt, in the tufts' own height band -- so a patch reads as a patch
-  with fireflies loose over it rather than as a grid of lights. The deal
-  is seeded off the map id, so a route's swarm is the same arrangement on
-  every visit and no two routes get the same one.
-
-  **The connected neighbours get theirs too.** A neighbour map is drawn
-  in full -- ground, trees, grass and the firefly cards standing in it --
-  so a swarm that stopped at the map seam would draw a line across the
-  picture where the lights ran out. The particle shader takes a map
-  origin now and each neighbour's own cached mesh is drawn where its
-  terrain is. Nothing else in the atmosphere crosses a seam, and nothing
-  else needed to: fog and beams belong to the map you are standing in.
-
-  This is the FULL rung of FOREST FX, like every particle in that pass.
-  The per-tuft firefly cards in the grass mesh are the layer underneath
-  and are unchanged -- static geometry the scene shader already carries,
-  so grass still has something alight after dark on LOW and on Android,
-  where this pass is not drawn at all.
-
-  One fix falls out of it: a machine that cannot hand back a readable
-  depth buffer used to lose the whole atmosphere pass, particles
-  included, rather than just the beams it actually blocks. The refusal
-  now takes the beams alone.
-
 - **SHINY POKEMON.** On by default, with no row to switch it off:
   shininess is a property of a Pokemon, not a display mode, and one that
   differed between two players' saves would be a setting rather than a
@@ -126,6 +75,17 @@
   engine's own pixel grid so it is palette-processed like every other
   pixel rather than floating over the finished frame. Page 1 only: page 2
   clears that block itself.
+
+  **SHINY ODDS**, on the DRAMATIC SHAPE menu itself rather than in one of
+  its four categories -- those are the diorama, the fights, what the look
+  costs and the headset, and an encounter rate is none of them. The row
+  reads `1:8192` and halves down to `1:1`, so every rung is exactly twice
+  as often as the one above it, and `1:8192` is both the default and the
+  fallback for an unreadable options file: the mod's default is the games'
+  own rate, not a buff. The number is the truth rather than an
+  approximation of it, because a missed roll also clears a mon that landed
+  on the pattern by luck -- without that, every setting would be itself
+  and 1/8192 in parallel, and no setting could ever be rarer than 8192.
 
 ## 1.8.0
 
