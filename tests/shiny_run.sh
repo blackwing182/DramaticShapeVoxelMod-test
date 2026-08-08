@@ -20,16 +20,16 @@ DRIVER=mods/DramaticShapeVoxelMod/tests/shiny_one.lua
 
 # species | level | map | cell x | cell y | rung
 #
-# Each legendary in the cave it actually lives in. A species or map this
-# dataset does not have is skipped with a line rather than failing the run,
-# so trimming this list is just deleting rows.
+# Lapras out on the open sea: ROUTE_20 is the 50-wide water run between
+# Fuchsia and Cinnabar, and the middle of it is nothing but water in every
+# direction. A species or map this dataset does not have is skipped with a
+# line rather than failing the run.
 #
 # The rung column picks STADIUM A (the fight staged on the map itself) or
-# STADIUM B (the two carried discs). A cave floor is cramped and often has no
-# clear ground to stage on, which is precisely what B exists for.
+# STADIUM B (the two carried discs). Over open water there is no clear GROUND
+# to stage on, which is exactly the case B exists for -- see shiny_one.lua.
 RUNS=(
-  "MEWTWO|70|CERULEAN_CAVE_B1F|7|4|stadium"
-  "ARTICUNO|50|SEAFOAM_ISLANDS_B4F|7|4|stadium"
+  "LAPRAS|40|ROUTE_20|25|4|stadium"
 )
 
 OPTS="$APPDATA/LOVE/pokemon-love2d/options.lua"
