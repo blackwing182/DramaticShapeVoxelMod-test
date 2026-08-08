@@ -285,15 +285,60 @@ local REFS = {
 function ShinyPalette.tintFor(dex)
   local hit = tintCache[dex]
   if hit ~= nil then return hit or nil end
-  local fn = ShinyPalette.transform(ShinyPalette.forDex(dex))
+  local spec = ShinyPalette.forDex(dex)
+  local fn = ShinyPalette.transform(spec)
   if not fn then tintCache[dex] = false; return nil end
   local sr, sg, sb, n = 0, 0, 0, 0
-  for _, c in ipairs(REFS) do
-    local r, g, b = fn(c[1], c[2], c[3])
-    sr = sr + r / c[1]
-    sg = sg + g / c[2]
-    sb = sb + b / c[3]
-    n = n + 1
+
+  if spec.lut then
+    -- A lookup table answers only the colours that are IN it, so running
+    -- synthetic references through one returns them untouched and reports a
+    -- tint of exactly 1 -- i.e. no tint, for the five species whose shiny is
+    -- the most dramatic in the game. (A shiny Gyarados came out with an
+    -- ordinary blue pic for precisely this reason.) The table's own entries
+    -- are the right sample: they are what this Pokemon is actually made of.
+    for from, to in pairs(spec.lut) do
+      local fr, fg, fb = floor(from / 65536) % 256, floor(from / 256) % 256,
+                         from % 256
+      local tr, tg, tb = floor(to / 65536) % 256, floor(to / 256) % 256,
+                         to % 256
+      -- guard the near-black entries: a ratio against 2 is noise, and a
+      -- handful of them would swamp the mean
+      if fr > 24 and fg > 24 and fb > 24 then
+        sr = sr + tr / fr
+        sg = sg + tg / fg
+        sb = sb + tb / fb
+        n = n + 1
+      end
+    end
+  end
+
+  -- A slide: measure it against the colour this Pokemon is mostly MADE of.
+  --
+  -- Averaging over a balanced set of references does not work, and the
+  -- reason is worth keeping: a hue rotation moves red toward cyan and cyan
+  -- toward red, so over a symmetric wheel the ratios cancel and every
+  -- species reports a tint of 1. Charizard and Ponyta both came back with no
+  -- tint at all that way. One real body colour, rotated, is the whole
+  -- answer.
+  if n == 0 and spec.dom then
+    local dr = floor(spec.dom / 65536) % 256
+    local dg = floor(spec.dom / 256) % 256
+    local db = spec.dom % 256
+    if dr > 12 and dg > 12 and db > 12 then
+      local r, g, b = fn(dr, dg, db)
+      sr, sg, sb, n = r / dr, g / dg, b / db, 1
+    end
+  end
+
+  if n == 0 then
+    for _, c in ipairs(REFS) do
+      local r, g, b = fn(c[1], c[2], c[3])
+      sr = sr + r / c[1]
+      sg = sg + g / c[2]
+      sb = sb + b / c[3]
+      n = n + 1
+    end
   end
   local t = {
     max(TINT_FLOOR, min(1, sr / n)),

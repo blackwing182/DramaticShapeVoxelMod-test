@@ -37,8 +37,11 @@ import json
 import os
 from PIL import Image
 
-SS = r"C:\Users\blcha\Desktop\DRAMATIC_SHAPE\pokemon-gen1-recomp-project\mods\DramaticShapeVoxelMod\.claude\shiny_stadium"
-OUT = r"C:\Users\blcha\Desktop\DRAMATIC_SHAPE\pokemon-gen1-recomp-project\mods\DramaticShapeVoxelMod\.claude\worktrees\shiny-system\data\shiny_colors.lua"
+HERE = os.path.dirname(os.path.abspath(__file__))
+MOD = os.path.dirname(HERE)
+# the research tree (gitignored -- see the provenance note above)
+SS = os.path.join(MOD, ".claude", "shiny_stadium")
+OUT = os.path.join(MOD, "data", "shiny_colors.lua")
 
 vals = json.load(open(os.path.join(SS, "stadium_shiny_values.json"), encoding="utf-8"))
 V = vals["species"]
@@ -83,6 +86,37 @@ def lut_for(dex):
     return {k: v for k, v in pairs.items() if k != v}
 
 
+def dominant(dex):
+    """The most-covering opaque colour across this species' BODY textures.
+
+    Deliberately not the mean: a mean over a Pokemon with a light belly and a
+    dark back lands on a mid-grey that belongs to neither, and the tint drawn
+    from it would be no tint. The modal colour is a real colour off the model.
+    """
+    d = slugs[dex]
+    counts = {}
+    for fn in sorted(os.listdir(os.path.join(TEX, "normal", d))):
+        idx = int(fn.replace("tex_", "").replace(".png", ""))
+        if kind.get((dex, idx), "body") != "body":
+            continue
+        im = Image.open(os.path.join(TEX, "normal", d, fn)).convert("RGBA")
+        px = im.load()
+        for y in range(im.size[1]):
+            for x in range(im.size[0]):
+                c = px[x, y]
+                if c[3] < 8:
+                    continue
+                # skip the near-black and near-white structural colours:
+                # outlines and eye whites are on every model and say nothing
+                # about which Pokemon this is
+                if max(c[:3]) < 30 or min(c[:3]) > 225:
+                    continue
+                counts[c[:3]] = counts.get(c[:3], 0) + 1
+    if not counts:
+        return None
+    return max(counts.items(), key=lambda kv: kv[1])[0]
+
+
 lines = []
 w = lines.append
 
@@ -118,6 +152,15 @@ for dex in sorted(V):
     w("  [%d] = {" % int(dex))
     w('    name = "%s",' % e["name"])
     w("    hueRange = { min = %d, max = %d }," % (hr["min"], hr["max"]))
+    dom = dominant(dex)
+    if dom:
+        w("    -- the colour this species is mostly MADE of, and what its"
+          " shiny")
+        w("    -- shift does to it. A flat sprite cannot be recoloured, only")
+        w("    -- multiplied, and the multiply has to be measured against the")
+        w("    -- body colour: averaged over a balanced set of references a")
+        w("    -- hue rotation cancels itself out to no tint at all.")
+        w("    dom = 0x%02X%02X%02X," % dom)
     if e["special_texture"]:
         n_lut += 1
         lut = lut_for(dex)

@@ -123,6 +123,57 @@ function ShinyUI.installSummary()
     return unpack(out)
   end
 
+  -- The summary PIC, through its PALETTE.
+  --
+  -- Recolouring the sprite's pixels here does NOT work, and it is worth
+  -- writing down why rather than leaving it to be re-attempted: the summary
+  -- art is four-shade DMG grey, and the screen's colour is applied
+  -- afterwards by the palette pass over the finished frame. Whatever RGB is
+  -- put in the ImageData is remapped away by it. The colour of that pic
+  -- lives in the palette and nowhere else, so the palette is what has to
+  -- move. (Tried it, shot it, reverted it.)
+  --
+  -- This is the ADVANCED-palette answer, and it is better than a multiply:
+  -- SetPal_StatusScreen hands the pic zone the species palette
+  -- (PaletteFX.monPal), and sgbPalettes is a method on the MENU, so unlike
+  -- the battle pic's image cache it knows which individual is on screen.
+  -- Running those four colours through the species' own shiny transform
+  -- gives the summary a genuinely recoloured Pokemon -- brightening
+  -- included, which a draw-colour multiply cannot do.
+  --
+  -- Only ZONE entries are touched. The first palette the engine returns is
+  -- the whole-screen HP-bar one, and rotating that would recolour the text.
+  local innerPal = SummaryMenu.sgbPalettes
+  if type(innerPal) == "function" then
+    function SummaryMenu:sgbPalettes(game, ...)
+      local out = innerPal(self, game, ...)
+      if type(out) ~= "table" or not Shiny.isShiny(self.mon) then return out end
+      local def = game and game.data and game.data.pokemon
+                  and game.data.pokemon[self.mon.species]
+      local fn = def and def.dex
+                 and ShinyPalette.transform(ShinyPalette.forDex(def.dex))
+      if not fn then return out end
+      for _, z in ipairs(out) do
+        if type(z) == "table" and z.w and z.h and type(z.colors) == "table" then
+          -- copied, never mutated in place: monPal hands back the dataset's
+          -- own palette table, and writing through it would recolour every
+          -- Pokemon of the species everywhere for the rest of the process
+          local cols = {}
+          for i, c in ipairs(z.colors) do
+            if type(c) == "table" and c[1] then
+              local r, g, b = fn(c[1], c[2], c[3])
+              cols[i] = { r, g, b }
+            else
+              cols[i] = c
+            end
+          end
+          z.colors = cols
+        end
+      end
+      return out
+    end
+  end
+
   SummaryMenu.dramaticShapeShiny = true
 end
 

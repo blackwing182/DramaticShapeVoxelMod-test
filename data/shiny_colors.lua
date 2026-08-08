@@ -25,176 +25,386 @@ return {
   [1] = {
     name = "bulbasaur",
     hueRange = { min = -45, max = 70 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x52BD9C,
     slide = { h = -30, l = 2, s = -1 },
   },
   [2] = {
     name = "ivysaur",
     hueRange = { min = -40, max = 45 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x6AC5C5,
     slide = { h = -50, l = 2, s = 1 },
   },
   [3] = {
     name = "venusaur",
     hueRange = { min = -30, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x6ABDCD,
     slide = { h = -40, l = 2, s = 1 },
   },
   [4] = {
     name = "charmander",
     hueRange = { min = -25, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEE8B31,
     slide = { h = 28, l = 0, s = -1 },
   },
   [5] = {
     name = "charmeleon",
     hueRange = { min = -10, max = 55 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xD54A6A,
     slide = { h = -20, l = 1, s = -1 },
   },
   [6] = {
     name = "charizard",
     hueRange = { min = -20, max = 15 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF68B29,
     slide = { h = -136, l = 0, s = -6 },
   },
   [7] = {
     name = "squirtle",
     hueRange = { min = -50, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xACFFFF,
     slide = { h = 30, l = -3, s = 2 },
   },
   [8] = {
     name = "wartortle",
     hueRange = { min = -50, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x8BA4E6,
     slide = { h = -50, l = -3, s = -2 },
   },
   [9] = {
     name = "blastoise",
     hueRange = { min = -30, max = 35 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x7B9CBD,
     slide = { h = -35, l = -1, s = -3 },
   },
   [10] = {
     name = "caterpie",
     hueRange = { min = -30, max = 80 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x629441,
     slide = { h = -45, l = 2, s = -1 },
   },
   [11] = {
     name = "metapod",
     hueRange = { min = -20, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xACF662,
     slide = { h = -55, l = 0, s = 0 },
   },
   [12] = {
     name = "butterfree",
     hueRange = { min = -40, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xD5F6F6,
     slide = { h = 140, l = 0, s = 0 },
   },
   [13] = {
     name = "weedle",
     hueRange = { min = 0, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xE67331,
     slide = { h = 46, l = 0, s = 0 },
   },
   [14] = {
     name = "kakuna",
     hueRange = { min = -25, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xDECD31,
     slide = { h = 30, l = 0, s = 0 },
   },
   [15] = {
     name = "beedrill",
     hueRange = { min = -20, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFB44A,
     slide = { h = 145, l = 0, s = -3 },
   },
   [16] = {
     name = "pidgey",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFE6A4,
     slide = { h = 40, l = 1, s = -2 },
   },
   [17] = {
     name = "pidgeotto",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFE6A4,
     slide = { h = 40, l = 1, s = 0 },
   },
   [18] = {
     name = "pidgeot",
     hueRange = { min = -35, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFE6A4,
     slide = { h = 40, l = 1, s = -3 },
   },
   [19] = {
     name = "rattata",
     hueRange = { min = -40, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x9C6AC5,
     slide = { h = -105, l = 0, s = -5 },
   },
   [20] = {
     name = "raticate",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF6EEC5,
     slide = { h = -30, l = 1, s = -4 },
   },
   [21] = {
     name = "spearow",
     hueRange = { min = -30, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFE6A4,
     slide = { h = -25, l = 1, s = -2 },
   },
   [22] = {
     name = "fearow",
     hueRange = { min = -25, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xDCD294,
     slide = { h = 140, l = 3, s = -5 },
   },
   [23] = {
     name = "ekans",
     hueRange = { min = -30, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xAC7BBD,
     slide = { h = -155, l = -2, s = -5 },
   },
   [24] = {
     name = "arbok",
     hueRange = { min = -70, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA48BBD,
     slide = { h = -80, l = 0, s = -4 },
   },
   [25] = {
     name = "pikachu",
     hueRange = { min = -15, max = 25 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFDE31,
     slide = { h = -25, l = 1, s = 0 },
   },
   [26] = {
     name = "raichu",
     hueRange = { min = -15, max = 25 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF6A429,
     slide = { h = 25, l = 0, s = -2 },
   },
   [27] = {
     name = "sandshrew",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA49C52,
     slide = { h = -159, l = -1, s = -4 },
   },
   [28] = {
     name = "sandslash",
     hueRange = { min = -20, max = 25 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xCDBD08,
     slide = { h = 25, l = 1, s = -6 },
   },
   [29] = {
     name = "nidoran_f",
     hueRange = { min = -60, max = 70 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xD5DEF6,
     slide = { h = 70, l = -2, s = 2 },
   },
   [30] = {
     name = "nidorina",
     hueRange = { min = -80, max = 80 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x9CD5DE,
     slide = { h = 100, l = 0, s = 0 },
   },
   [31] = {
     name = "nidoqueen",
     hueRange = { min = -60, max = 80 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x7B9CBD,
     slide = { h = 50, l = 0, s = -5 },
   },
   [32] = {
     name = "nidoran_m",
     hueRange = { min = -70, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF694D5,
     slide = { h = -96, l = 0, s = 0 },
   },
   [33] = {
     name = "nidorino",
     hueRange = { min = -70, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xE68BCD,
     slide = { h = -99, l = 0, s = 0 },
   },
   [34] = {
     name = "nidoking",
     hueRange = { min = -50, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xBD83C5,
     slide = { h = -60, l = 0, s = 0 },
   },
   [35] = {
     name = "clefairy",
     hueRange = { min = -40, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFC5C5,
     -- Stadium ships a real alternate texture for this one; 350
     -- colours move, every other colour stays exactly as it was.
     lut = {
@@ -291,6 +501,12 @@ return {
   [36] = {
     name = "clefable",
     hueRange = { min = -40, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFD5CD,
     -- Stadium ships a real alternate texture for this one; 223
     -- colours move, every other colour stays exactly as it was.
     lut = {
@@ -355,16 +571,34 @@ return {
   [37] = {
     name = "vulpix",
     hueRange = { min = -30, max = 35 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xCD9C8B,
     slide = { h = 27, l = 0, s = 3 },
   },
   [38] = {
     name = "ninetales",
     hueRange = { min = -30, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFEEB4,
     slide = { h = -130, l = 0, s = -2 },
   },
   [39] = {
     name = "jigglypuff",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFCDDE,
     -- Stadium ships a real alternate texture for this one; 394
     -- colours move, every other colour stays exactly as it was.
     lut = {
@@ -472,6 +706,12 @@ return {
   [40] = {
     name = "wigglytuff",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFCDDE,
     -- Stadium ships a real alternate texture for this one; 409
     -- colours move, every other colour stays exactly as it was.
     lut = {
@@ -583,451 +823,991 @@ return {
   [41] = {
     name = "zubat",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x73DEF6,
     slide = { h = -110, l = -1, s = -2 },
   },
   [42] = {
     name = "golbat",
     hueRange = { min = -25, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x29ACE6,
     slide = { h = -63, l = -6, s = -4 },
   },
   [43] = {
     name = "oddish",
     hueRange = { min = -40, max = 70 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x626A83,
     slide = { h = -50, l = 2, s = 3 },
   },
   [44] = {
     name = "gloom",
     hueRange = { min = -40, max = 65 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x626A83,
     slide = { h = 30, l = 3, s = 1 },
   },
   [45] = {
     name = "vileplume",
     hueRange = { min = -25, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x626A83,
     slide = { h = 50, l = 3, s = 1 },
   },
   [46] = {
     name = "paras",
     hueRange = { min = -20, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xC5E6FF,
     slide = { h = 25, l = -3, s = 3 },
   },
   [47] = {
     name = "parasect",
     hueRange = { min = -20, max = 35 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEE5231,
     slide = { h = 40, l = -4, s = 6 },
   },
   [48] = {
     name = "venonat",
     hueRange = { min = -60, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x4A3952,
     slide = { h = -90, l = 0, s = 0 },
   },
   [49] = {
     name = "venomoth",
     hueRange = { min = -60, max = 100 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF6C5E6,
     slide = { h = -90, l = 0, s = 1 },
   },
   [50] = {
     name = "diglett",
     hueRange = { min = -20, max = 35 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xBD6239,
     slide = { h = -50, l = 1, s = -2 },
   },
   [51] = {
     name = "dugtrio",
     hueRange = { min = -20, max = 35 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xBD6239,
     slide = { h = -50, l = 1, s = -2 },
   },
   [52] = {
     name = "meowth",
     hueRange = { min = -40, max = 35 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF6EEAC,
     slide = { h = -55, l = 2, s = 0 },
   },
   [53] = {
     name = "persian",
     hueRange = { min = -20, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFE6BD,
     slide = { h = -30, l = 0, s = -2 },
   },
   [54] = {
     name = "psyduck",
     hueRange = { min = -20, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFDE29,
     slide = { h = -142, l = 2, s = -2 },
   },
   [55] = {
     name = "golduck",
     hueRange = { min = -60, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x8B9CAC,
     slide = { h = 20, l = 0, s = 3 },
   },
   [56] = {
     name = "mankey",
     hueRange = { min = -35, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFEEAC,
     slide = { h = 105, l = -1, s = -3 },
   },
   [57] = {
     name = "primeape",
     hueRange = { min = -35, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFD59C,
     slide = { h = -50, l = 1, s = -3 },
   },
   [58] = {
     name = "growlithe",
     hueRange = { min = -35, max = 10 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEEB420,
     slide = { h = 20, l = 0, s = 2 },
   },
   [59] = {
     name = "arcanine",
     hueRange = { min = -30, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF69429,
     slide = { h = 25, l = 1, s = -3 },
   },
   [60] = {
     name = "poliwag",
     hueRange = { min = -50, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x6A7BA4,
     slide = { h = -20, l = 0, s = 3 },
   },
   [61] = {
     name = "poliwhirl",
     hueRange = { min = -50, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x6A7BA4,
     slide = { h = 20, l = -2, s = 2 },
   },
   [62] = {
     name = "poliwrath",
     hueRange = { min = -50, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x6A7BA4,
     slide = { h = -58, l = -2, s = 3 },
   },
   [63] = {
     name = "abra",
     hueRange = { min = -20, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xD5A420,
     slide = { h = 20, l = 1, s = -1 },
   },
   [64] = {
     name = "kadabra",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEECD5A,
     slide = { h = 10, l = 1, s = 1 },
   },
   [65] = {
     name = "alakazam",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEECD5A,
     slide = { h = 20, l = -2, s = 1 },
   },
   [66] = {
     name = "machop",
     hueRange = { min = -40, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xACD5BD,
     slide = { h = 100, l = 0, s = 0 },
   },
   [67] = {
     name = "machoke",
     hueRange = { min = -70, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x949CBD,
     slide = { h = -120, l = 1, s = -2 },
   },
   [68] = {
     name = "machamp",
     hueRange = { min = -70, max = 80 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xACD5C5,
     slide = { h = 100, l = 0, s = -2 },
   },
   [69] = {
     name = "bellsprout",
     hueRange = { min = -15, max = 15 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFFF18,
     slide = { h = -25, l = 0, s = -3 },
   },
   [70] = {
     name = "weepinbell",
     hueRange = { min = -25, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF8F860,
     slide = { h = -75, l = -1, s = -3 },
   },
   [71] = {
     name = "victreebel",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFFF62,
     slide = { h = 40, l = -2, s = -3 },
   },
   [72] = {
     name = "tentacool",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x4AC5C5,
     slide = { h = 50, l = 2, s = 2 },
   },
   [73] = {
     name = "tentacruel",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x4AC5C5,
     slide = { h = 50, l = 2, s = 2 },
   },
   [74] = {
     name = "geodude",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x73735A,
     slide = { h = -70, l = 0, s = 0 },
   },
   [75] = {
     name = "graveler",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x525239,
     slide = { h = -55, l = 0, s = 0 },
   },
   [76] = {
     name = "golem",
     hueRange = { min = -50, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x836A52,
     slide = { h = -55, l = 0, s = -2 },
   },
   [77] = {
     name = "ponyta",
     hueRange = { min = -25, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFFF83,
     slide = { h = 40, l = 2, s = -1 },
   },
   [78] = {
     name = "rapidash",
     hueRange = { min = -25, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFFF83,
     slide = { h = 40, l = 2, s = -1 },
   },
   [79] = {
     name = "slowpoke",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFF8B94,
     slide = { h = -90, l = -6, s = -3 },
   },
   [80] = {
     name = "slowbro",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA4ACA4,
     slide = { h = -75, l = -4, s = -2 },
   },
   [81] = {
     name = "magnemite",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x5A5A5A,
     slide = { h = -30, l = 2, s = -4 },
   },
   [82] = {
     name = "magneton",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x5A5A5A,
     slide = { h = -30, l = 2, s = -4 },
   },
   [83] = {
     name = "farfetchd",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xB4946A,
     slide = { h = 15, l = 1, s = 2 },
   },
   [84] = {
     name = "doduo",
     hueRange = { min = -10, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xBD6200,
     slide = { h = 31, l = 1, s = 2 },
   },
   [85] = {
     name = "dodrio",
     hueRange = { min = -10, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xB45A00,
     slide = { h = 31, l = 1, s = 2 },
   },
   [86] = {
     name = "seel",
     hueRange = { min = -40, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xE67373,
     slide = { h = -180, l = 3, s = -4 },
   },
   [87] = {
     name = "dewgong",
     hueRange = { min = -10, max = 10 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xDEEEDE,
     slide = { h = -180, l = 3, s = -4 },
   },
   [88] = {
     name = "grimer",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x5A4A5A,
     slide = { h = 125, l = -1, s = 1 },
   },
   [89] = {
     name = "muk",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x5A4A5A,
     slide = { h = -115, l = 0, s = 1 },
   },
   [90] = {
     name = "shellder",
     hueRange = { min = -70, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x8B73C5,
     slide = { h = 120, l = 0, s = 0 },
   },
   [91] = {
     name = "cloyster",
     hueRange = { min = -70, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x29104A,
     slide = { h = 140, l = 0, s = 0 },
   },
   [92] = {
     name = "gastly",
     hueRange = { min = -80, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x201029,
     slide = { h = -124, l = 0, s = 0 },
   },
   [93] = {
     name = "haunter",
     hueRange = { min = -70, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x6A418B,
     slide = { h = -50, l = -2, s = -2 },
   },
   [94] = {
     name = "gengar",
     hueRange = { min = -90, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x5A3962,
     slide = { h = -55, l = -2, s = -1 },
   },
   [95] = {
     name = "onix",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA4A4BD,
     slide = { h = -171, l = -3, s = 0 },
   },
   [96] = {
     name = "drowzee",
     hueRange = { min = -10, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFBD00,
     slide = { h = -110, l = 4, s = -4 },
   },
   [97] = {
     name = "hypno",
     hueRange = { min = -15, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xE6BD18,
     slide = { h = -80, l = 1, s = -3 },
   },
   [98] = {
     name = "krabby",
     hueRange = { min = -20, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF63100,
     slide = { h = 40, l = -1, s = 0 },
   },
   [99] = {
     name = "kingler",
     hueRange = { min = -20, max = 25 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xBD6A31,
     slide = { h = 35, l = -1, s = 2 },
   },
   [100] = {
     name = "voltorb",
     hueRange = { min = -70, max = 10 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x8B3939,
     slide = { h = -95, l = 0, s = 0 },
   },
   [101] = {
     name = "electrode",
     hueRange = { min = -70, max = 10 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xBD4A4A,
     slide = { h = -95, l = 0, s = 0 },
   },
   [102] = {
     name = "exeggcute",
     hueRange = { min = -50, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF6B4BD,
     slide = { h = 70, l = 0, s = 0 },
   },
   [103] = {
     name = "exeggutor",
     hueRange = { min = -30, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFEE83,
     slide = { h = -60, l = 2, s = -3 },
   },
   [104] = {
     name = "cubone",
     hueRange = { min = -25, max = 5 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xDEAC39,
     slide = { h = 160, l = 2, s = -5 },
   },
   [105] = {
     name = "marowak",
     hueRange = { min = -25, max = 5 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xDED5C5,
     slide = { h = 160, l = 2, s = -5 },
   },
   [106] = {
     name = "hitmonlee",
     hueRange = { min = -20, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x94524A,
     slide = { h = 70, l = 0, s = -2 },
   },
   [107] = {
     name = "hitmonchan",
     hueRange = { min = -20, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA4836A,
     slide = { h = -145, l = 1, s = -1 },
   },
   [108] = {
     name = "lickitung",
     hueRange = { min = -50, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF6A4A4,
     slide = { h = 60, l = -1, s = 1 },
   },
   [109] = {
     name = "koffing",
     hueRange = { min = -60, max = 90 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x73418B,
     slide = { h = -80, l = -1, s = 3 },
   },
   [110] = {
     name = "weezing",
     hueRange = { min = -60, max = 90 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x836A83,
     slide = { h = -90, l = 0, s = 1 },
   },
   [111] = {
     name = "rhyhorn",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA4ACBD,
     slide = { h = 150, l = -1, s = 1 },
   },
   [112] = {
     name = "rhydon",
     hueRange = { min = -180, max = 180 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA4A4AC,
     slide = { h = 58, l = 1, s = 1 },
   },
   [113] = {
     name = "chansey",
     hueRange = { min = -50, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFD5E6,
     slide = { h = 80, l = 0, s = 0 },
   },
   [114] = {
     name = "tangela",
     hueRange = { min = -40, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEE5A73,
     slide = { h = -120, l = 0, s = 0 },
   },
   [115] = {
     name = "kangaskhan",
     hueRange = { min = -30, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x836A4A,
     slide = { h = -176, l = 0, s = -2 },
   },
   [116] = {
     name = "horsea",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x83B4DE,
     slide = { h = -70, l = 0, s = -1 },
   },
   [117] = {
     name = "seadra",
     hueRange = { min = -30, max = 35 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x5AB4DE,
     slide = { h = -65, l = 2, s = 1 },
   },
   [118] = {
     name = "goldeen",
     hueRange = { min = -60, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF6F6D5,
     slide = { h = 50, l = 0, s = 3 },
   },
   [119] = {
     name = "seaking",
     hueRange = { min = -50, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xB43918,
     slide = { h = 40, l = 1, s = 3 },
   },
   [120] = {
     name = "staryu",
     hueRange = { min = -10, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xE14254,
     slide = { h = -176, l = 0, s = 0 },
   },
   [121] = {
     name = "starmie",
     hueRange = { min = -40, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFF3888,
     slide = { h = -110, l = 0, s = 0 },
   },
   [122] = {
     name = "mr_mime",
     hueRange = { min = -30, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFC5C5,
     slide = { h = 30, l = -2, s = 2 },
   },
   [123] = {
     name = "scyther",
     hueRange = { min = -30, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x83C56A,
     slide = { h = -110, l = 0, s = 0 },
   },
   [124] = {
     name = "jynx",
     hueRange = { min = -10, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x525A73,
     slide = { h = 30, l = 0, s = 3 },
   },
   [125] = {
     name = "electabuzz",
     hueRange = { min = -20, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFEE00,
     slide = { h = -40, l = 2, s = -2 },
   },
   [126] = {
     name = "magmar",
     hueRange = { min = -15, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEE3918,
     slide = { h = -60, l = 1, s = -2 },
   },
   [127] = {
     name = "pinsir",
     hueRange = { min = -60, max = 130 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x836A62,
     slide = { h = -150, l = 0, s = 0 },
   },
   [128] = {
     name = "tauros",
     hueRange = { min = -10, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xC59429,
     slide = { h = -20, l = 4, s = -2 },
   },
   [129] = {
     name = "magikarp",
     hueRange = { min = -30, max = 25 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xE64A31,
     slide = { h = 50, l = -1, s = 2 },
   },
   [130] = {
     name = "gyarados",
     hueRange = { min = -20, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x62BDEE,
     -- Stadium ships a real alternate texture for this one; 481
     -- colours move, every other colour stays exactly as it was.
     lut = {
@@ -1157,106 +1937,232 @@ return {
   [131] = {
     name = "lapras",
     hueRange = { min = -15, max = 5 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x398BCD,
     slide = { h = 56, l = 2, s = 0 },
   },
   [132] = {
     name = "ditto",
     hueRange = { min = -60, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xAC6294,
     slide = { h = -80, l = -2, s = 1 },
   },
   [133] = {
     name = "eevee",
     hueRange = { min = -30, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xBD7B4A,
     slide = { h = -140, l = 1, s = -5 },
   },
   [134] = {
     name = "vaporeon",
     hueRange = { min = -20, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x6ABDC5,
     slide = { h = 87, l = 0, s = 0 },
   },
   [135] = {
     name = "jolteon",
     hueRange = { min = -25, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFFF00,
     slide = { h = -20, l = -1, s = -5 },
   },
   [136] = {
     name = "flareon",
     hueRange = { min = -20, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xCD624A,
     slide = { h = -60, l = 0, s = -2 },
   },
   [137] = {
     name = "porygon",
     hueRange = { min = -40, max = 40 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEEC5C5,
     slide = { h = -90, l = -3, s = 2 },
   },
   [138] = {
     name = "omanyte",
     hueRange = { min = -15, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xDEBD83,
     slide = { h = -30, l = 1, s = -1 },
   },
   [139] = {
     name = "omastar",
     hueRange = { min = -15, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xD5C583,
     slide = { h = -30, l = 1, s = -1 },
   },
   [140] = {
     name = "kabuto",
     hueRange = { min = -20, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA46220,
     slide = { h = 40, l = 2, s = -7 },
   },
   [141] = {
     name = "kabutops",
     hueRange = { min = -40, max = 50 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x94735A,
     slide = { h = 50, l = 0, s = -5 },
   },
   [142] = {
     name = "aerodactyl",
     hueRange = { min = -60, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xA49CB4,
     slide = { h = 50, l = -2, s = 2 },
   },
   [143] = {
     name = "snorlax",
     hueRange = { min = -10, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xF6E6B4,
     slide = { h = 30, l = 1, s = -3 },
   },
   [144] = {
     name = "articuno",
     hueRange = { min = -20, max = 30 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x31A4D5,
     slide = { h = -40, l = 0, s = 1 },
   },
   [145] = {
     name = "zapdos",
     hueRange = { min = -20, max = 25 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFF9C39,
     slide = { h = -40, l = 2, s = 0 },
   },
   [146] = {
     name = "moltres",
     hueRange = { min = -20, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xFFD500,
     slide = { h = -80, l = 5, s = -3 },
   },
   [147] = {
     name = "dratini",
     hueRange = { min = -40, max = 20 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x94A4E6,
     slide = { h = 40, l = 0, s = 0 },
   },
   [148] = {
     name = "dragonair",
     hueRange = { min = -30, max = 10 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0x4183BD,
     slide = { h = 50, l = 2, s = -3 },
   },
   [149] = {
     name = "dragonite",
     hueRange = { min = -20, max = 25 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xE6AC5A,
     slide = { h = 130, l = 0, s = -4 },
   },
   [150] = {
     name = "mewtwo",
     hueRange = { min = -70, max = 90 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xBDBDDE,
     slide = { h = -40, l = -1, s = -2 },
   },
   [151] = {
     name = "mew",
     hueRange = { min = -40, max = 60 },
+    -- the colour this species is mostly MADE of, and what its shiny
+    -- shift does to it. A flat sprite cannot be recoloured, only
+    -- multiplied, and the multiply has to be measured against the
+    -- body colour: averaged over a balanced set of references a
+    -- hue rotation cancels itself out to no tint at all.
+    dom = 0xEEDEEE,
     slide = { h = -80, l = 0, s = 0 },
   },
 }

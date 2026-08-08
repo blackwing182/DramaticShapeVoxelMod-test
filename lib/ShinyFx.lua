@@ -42,12 +42,24 @@ local ShinyFx = {}
 
 -- ------- shape and timing
 
+-- Sized against the mon CARD, which is what a Pokemon occupies here: a card
+-- is BattleBillboard.FULL_W / FULL_PIC * GB_W units across, i.e. about 46
+-- wide and 41 tall. The first version of this was built to numbers a tenth
+-- of that and drew sixty quads a frame that nobody could see -- a ring seven
+-- units across, inside a Gyarados.
 ShinyFx.LIFE = 0.75          -- seconds from spring to gone
 ShinyFx.STARS = 10           -- around the ring
-ShinyFx.RISE = 10            -- world units the ring climbs over its life
-ShinyFx.SPREAD = 7           -- how far out the ring opens
-ShinyFx.CHEST = 9            -- height above the tile the burst starts at
-ShinyFx.SIZE = 3.2           -- a star's world size at full brightness
+ShinyFx.RISE = 14            -- world units the ring climbs over its life
+ShinyFx.SPREAD = 24          -- how far out the ring opens -- wider than the
+                             -- body, or the stars are inside the Pokemon
+ShinyFx.CHEST = 20           -- height above the tile the burst starts at
+ShinyFx.SIZE = 7             -- a star's world size at full brightness
+
+-- Additive drawing keeps the depth TEST (Voxel3D.blend sets lequal with
+-- writes off), so a star level with the model is rejected by it however
+-- bright it is. The extra pull puts the ring in front of the Pokemon it
+-- belongs to, the same trick the move-animation card uses.
+ShinyFx.PULL_BONUS = 6
 
 -- one per side, nil when nothing is playing
 local live = { player = nil, enemy = nil }
@@ -132,12 +144,24 @@ local function easeOut(u) return 1 - (1 - u) * (1 - u) end
 -- Draw whatever is playing. `arena` and `groundY` come from the scene, the
 -- same two the mon cards are placed from, so a sparkle lands where its
 -- Pokemon is standing rather than where the layout thinks it should be.
+-- Why a burst did not draw, for a driver to read back. Rendering faults are
+-- invisible to the test suite and this one has four separate ways to be a
+-- no-op, all of them silent.
+ShinyFx.debug = { calls = 0, noArena = 0, noImage = 0, noMesh = 0,
+                  noLive = 0, quads = 0 }
+
 function ShinyFx.draw(arena, groundY, pull)
-  if not arena then return end
+  local dbg = ShinyFx.debug
+  dbg.calls = dbg.calls + 1
+  if not arena then dbg.noArena = dbg.noArena + 1 return end
   local img = starImage()
-  if not img then return end
+  if not img then dbg.noImage = dbg.noImage + 1 return end
   local mesh = BattleBillboard.mesh()
-  if not mesh then return end
+  if not mesh then dbg.noMesh = dbg.noMesh + 1 return end
+  if not (live.player or live.enemy) then
+    dbg.noLive = dbg.noLive + 1
+    return
+  end
 
   local drew = false
   for _, side in ipairs({ "player", "enemy" }) do
@@ -174,7 +198,8 @@ function ShinyFx.draw(arena, groundY, pull)
           Mat4.mul(Mat4.translate(x, baseY, z), Mat4.rotateY(yaw)),
           Mat4.mul(Mat4.translate(ox, oy, 0), Mat4.scale(k, k, 1)))
         love.graphics.setColor(1, 1, 1, alpha)
-        Voxel3D.draw(mesh, img, m, pull)
+        Voxel3D.draw(mesh, img, m, (pull or 0) + ShinyFx.PULL_BONUS)
+        dbg.quads = dbg.quads + 1
       end
     end
   end
