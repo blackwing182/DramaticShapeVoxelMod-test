@@ -3631,25 +3631,20 @@ T.eq(Battles.flashing({ fx = { flash = 16 }, frame = 2 }), false,
 T.eq(Battles.flashing({ fx = { flash = 16 }, frame = 5 }), true,
   "on a four-frame cycle")
 
--- ------- the wireframe is forced on in a battle
+-- ------- the wireframe follows the V-GRID row, battles included
 --
--- A fight is a staged shot rather than the world being walked through, so it
--- always wears the seams. The player's own V-GRID row must not be touched by
--- that -- an override, not a write, or switching the mode off mid-battle
--- would quietly rewrite a setting they chose.
+-- The row is the whole answer. A battle used to force the seams on whatever
+-- it said -- so nothing may override enabled(), and the battle pass must not
+-- write the row either: a fight that flipped it would rewrite a setting the
+-- player chose.
 local Grid = run.loader.exports.DRAMATIC_SHAPE.lib.require("VoxelGrid")
-Grid.override = nil
-local rowWas = Grid.setting:get()
-T.eq(Grid.enabled(), rowWas and true or false,
-  "with no override the wireframe follows the row")
-Grid.override = true
-T.eq(Grid.enabled(), true, "an override forces it on")
-T.eq(Grid.setting:get(), rowWas, "and leaves the player's row alone")
-Grid.override = false
-T.eq(Grid.enabled(), false, "an override can force it off too")
-Grid.override = nil
-T.eq(Grid.enabled(), rowWas and true or false,
-  "and clearing it hands the answer back to the row")
+local idxWas = Grid.setting.index
+Grid.setting:sync(true)
+T.eq(Grid.enabled(), true, "the wireframe is on when the row is on")
+Grid.setting:sync(false)
+T.eq(Grid.enabled(), false, "and off when the row is off -- nothing overrides it")
+T.eq(Grid.override, nil, "and there is no override left to force a battle on")
+Grid.setting.index = idxWas
 
 -- ------- the depth of field is measured off the two marks
 --

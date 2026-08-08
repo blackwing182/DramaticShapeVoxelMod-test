@@ -61,19 +61,13 @@ end
 VoxelGrid.setting = ModSetting.new(VoxelGrid.KEY, VoxelGrid.LABEL,
                                    { false, true }, { "OFF", "ON" })
 
--- A pass that needs the wireframe whatever the player left the row on sets
--- this for the length of its own draw and puts it back after. nil means
--- "follow the setting", which is every frame outside such a pass.
---
--- The overworld battle is the one user: a fight is a STAGED shot, not the
--- world being walked around in, and the seams are what make it read as
--- constructed rather than as a photograph of somewhere. The row still owns
--- what free-roam looks like, and is not written to -- switching the mode off
--- mid-battle would silently rewrite the player's own setting.
-VoxelGrid.override = nil
-
+-- The row is the whole answer, everywhere: free-roam and the battle arena
+-- alike. The battle used to force the seams on regardless -- a fight is a
+-- STAGED shot, and the seams are what make it read as constructed rather
+-- than photographed -- but a player who turns the wireframe off means the
+-- whole mod, and a mode that came back for every fight read as the row not
+-- working rather than as a deliberate framing.
 function VoxelGrid.enabled()
-  if VoxelGrid.override ~= nil then return VoxelGrid.override end
   return VoxelGrid.setting:get() and true or false
 end
 
