@@ -18,16 +18,18 @@ set -u
 LOVE=${LOVE:-/c/Program Files/LOVE/lovec.exe}
 DRIVER=mods/DramaticShapeVoxelMod/tests/shiny_one.lua
 
-# species | level | map | cell x | cell y
+# species | level | map | cell x | cell y | rung
 #
-# Each in its own outdoor place so no two takes look alike. A species
-# or map this dataset does not have is skipped with a line rather than
-# failing the run, so trimming this list is just deleting rows.
+# Each legendary in the cave it actually lives in. A species or map this
+# dataset does not have is skipped with a line rather than failing the run,
+# so trimming this list is just deleting rows.
+#
+# The rung column picks STADIUM A (the fight staged on the map itself) or
+# STADIUM B (the two carried discs). A cave floor is cramped and often has no
+# clear ground to stage on, which is precisely what B exists for.
 RUNS=(
-  "CHARIZARD|50|ROUTE_4|10|5"
-  "ELECTRODE|40|VIRIDIAN_CITY|20|20"
-  "VAPOREON|42|ROUTE_25|12|5"
-  "DRATINI|30|ROUTE_3|10|5"
+  "MEWTWO|70|CERULEAN_CAVE_B1F|7|4|stadium"
+  "ARTICUNO|50|SEAFOAM_ISLANDS_B4F|7|4|stadium"
 )
 
 OPTS="$APPDATA/LOVE/pokemon-love2d/options.lua"
@@ -39,12 +41,12 @@ fi
 i=0
 for row in "${RUNS[@]}"; do
   i=$((i + 1))
-  IFS='|' read -r SPECIES LEVEL MAP CX CY <<< "$row"
+  IFS='|' read -r SPECIES LEVEL MAP CX CY RUNG <<< "$row"
   echo ""
   echo "=== $i/${#RUNS[@]}  $SPECIES  at  $MAP  ==="
   echo "    close the window when you are done recording it"
   DS_SPECIES="$SPECIES" DS_LEVEL="$LEVEL" DS_MAP="$MAP" \
-  DS_CX="$CX" DS_CY="$CY" \
+  DS_CX="$CX" DS_CY="$CY" DS_RUNG="${RUNG:-stadium}" \
   POKEPORT_DRIVER="$DRIVER" "$LOVE" .
 done
 

@@ -86,7 +86,11 @@ return function(game)
     end
   end
 
-  OverworldBattle.setting:setValue("stadium", game)
+  -- STADIUM A stages the fight on the MAP, which wants clear ground. A cave
+  -- floor often has none, and the mode's answer there is STADIUM B: the two
+  -- carried discs, which work anywhere. DS_RUNG picks between them per
+  -- encounter rather than forcing one choice on every location.
+  OverworldBattle.setting:setValue(os.getenv("DS_RUNG") or "stadium", game)
 
   -- THE PARTY IS BUILT FIRST, at ordinary odds, and the roll is only pinned
   -- afterwards. Pokemon.new is where shininess is decided, so setting the
