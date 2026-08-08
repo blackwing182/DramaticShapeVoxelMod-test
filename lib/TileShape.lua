@@ -125,6 +125,12 @@ local FALLBACK_HEIGHTS = {
   stair_w = 16,
   stair_down_e = 16,
   stair_down_w = 16,
+  -- a stairwell descending toward the BACK of the map, drawn head-on
+  -- instead of from the side (the Centers' Cable Club steps).  Its own
+  -- class because the art reading is not the east/west one turned: there
+  -- a drawn COLUMN is a step and a drawn row is height, here a drawn ROW
+  -- is a step and drawn row = depth row, 1:1 down the well
+  stair_down_n = 16,
 }
 
 -- class -> how the mesher draws it (see the header). The last three are
@@ -215,6 +221,7 @@ local ART = {
   stair_w = "stair",
   stair_down_e = "stair",
   stair_down_w = "stair",
+  stair_down_n = "stair",
 }
 
 local spec = nil          -- the loaded data file, or false when absent
@@ -469,6 +476,8 @@ end
 --
 --   figures = { { w      = <tiles across>,
 --                 depth  = <voxels of body; ABSENT for a person>,
+--                 model  = { ...authored plan layers, bottom first... },
+--                 inset  = <voxels back from the support cell's front>,
 --                 thin   = { rows = <top rows>, depth = <voxels> },
 --                 flat   = { x = { <lx0>, <lx1> }, rows = { <r0>, <r1> } },
 --                 tiles  = { ...w*h tile ids, row-major... },
@@ -487,6 +496,16 @@ end
 --   solid here gets -- a per-pixel slab in world space, standing on the
 --   same furniture the card would have stood on.  The Marts' cash
 --   register is the case: a machine on a counter is a box, not an icon.
+--
+-- `model` is the third answer, and the only one that is not an extrusion
+-- of the drawing at all: an AUTHORED solid, given as plan layers bottom
+-- first, standing at the FRONT of the support cell.  It exists for a
+-- drawing too small to un-project -- the Centers' push bell is 7x6 pixels
+-- of ¾-view dome, and no reading of six rows produces a shape a mask can
+-- extrude without inventing more than it measures.  What it still may not
+-- invent is COLOUR: each layer names the atlas texel its top and its
+-- sides wear, so the solid is painted out of the drawing it replaces and
+-- follows every palette bake exactly like the rest of this file.
 --
 -- Two fields say which parts of such a drawing are NOT the extrusion,
 -- because a solid drawn in one 16x16 GB cell still packs more than one
@@ -557,10 +576,43 @@ local function authoredMasks(list)
                  r0 = math.floor(f.flat.rows[1]),
                  r1 = math.floor(f.flat.rows[2]) }
       end
+      -- an AUTHORED model: plan layers bottom-first, each with the atlas
+      -- texel its top and its sides wear.  Dropped whole on any malformed
+      -- layer, like every other field here -- a typo should leave the
+      -- drawing lying flat, not build half a solid.
+      local model = nil
+      if type(f.model) == "table" and #f.model > 0 then
+        model = {}
+        for _, L in ipairs(f.model) do
+          local plan = type(L) == "table" and L.plan
+          local mw = (type(plan) == "table" and type(plan[1]) == "string")
+                     and #plan[1] or 0
+          local okL = mw > 0 and type(L.top) == "table"
+                      and type(L.side) == "table"
+          if okL then
+            for _, r in ipairs(plan) do
+              if type(r) ~= "string" or #r ~= mw then okL = false break end
+            end
+          end
+          if not okL then model = nil break end
+          local cells = {}
+          for dz = 0, #plan - 1 do
+            local r = plan[dz + 1]
+            for dx = 0, mw - 1 do
+              if r:sub(dx + 1, dx + 1) ~= "0" then cells[dz * mw + dx] = true end
+            end
+          end
+          model[#model + 1] = { w = mw, d = #plan, cells = cells,
+                                top = L.top, side = L.side }
+        end
+      end
       if n > 0 then
         out[#out + 1] = { w = w, h = h, n = n, mask = mask,
                           tiles = f.tiles, under = f.under,
                           depth = depth and math.floor(depth) or nil,
+                          model = model,
+                          inset = model and math.floor(tonumber(f.inset) or 0)
+                                  or nil,
                           thin = thin, flat = flat }
       end
     end

@@ -87,6 +87,50 @@
   on the pattern by luck -- without that, every setting would be itself
   and 1/8192 in parallel, and no setting could ever be rarer than 8192.
 
+- **DOORS ON A GATE HOUSE'S OTHER SIDES.** A route gate is walked
+  through, so it opens on two opposite faces -- and the overworld drawing
+  can only show one. The sprite is a facade seen face-on under a roof
+  seen from above, so a SOUTH entrance is drawn (a doorway block in the
+  facade's last rows, which `Structures` folds up into the front face)
+  and a north, east or west one is drawn as nothing at all: the warp
+  sits on the ground cell outside, the art beside it is plain wall.
+  Top-down that reads fine, because the wall is never seen. In 3D you
+  walked into a blank slab -- 33 of them, on eleven gates.
+
+  Each is now a real doorway, one cell of the tileset's own door art
+  standing on the ground of the face you walk into, hung by the SAME
+  rule the drawn facade hangs its own door by: the black frame stays
+  flush with the wall and what it seals sinks a voxel behind it, so a
+  side door and a front door are the same opening at the same depth, and
+  the jambs the recess exposes fall out of the mesher wearing the
+  frame's own texels. The art's outer ring is left alone -- a doorway
+  cell is a cell OF a facade, its border is the wall beside and above
+  the frame, and painting all 16x16 would stamp a one-pixel strip of
+  front-wall art around every door. The same flood the facade tells wall
+  from pane with, bounded to the cell, tells them apart here.
+
+  **Nothing is authored but the art.** `data/voxel_heights.lua` names
+  one door cell per tileset and no coordinates: where the doors go is
+  read off the map, from the warps that land in a gate house and the
+  building standing against them. A warp is an entrance when it leads
+  into a GATE-tileset map, is not already ON a door tile (a drawn south
+  door would be fought over), and stands on a WALKABLE cell -- the ROM
+  gives several gates an unreachable twin warp on the fence or tree
+  beside the real opening, and a door behind a fence is a door into
+  nothing. What is left is the entrance, and the two cells side by side
+  that most gates do have come out as the double door they always were.
+  So no hand list to drift out of step with a map edit, and every other
+  building in the game is untouched: exactly the eleven gate placements
+  get doors.
+
+  Doors belong to the PLACEMENT, not the drawing -- the same 6x4 block
+  is the gate on four routes and the warps sit at different rows of it
+  on each -- so the model cache is keyed by the openings as well, and
+  only placements that agree share a model. It costs about 290 quads a
+  door (a flank quad carries one texel, so the art cannot merge into
+  strips the way a facade's does) and no voxels: the recess removes as
+  many faces as it exposes.
+
 ## 1.8.0
 
 ### Added

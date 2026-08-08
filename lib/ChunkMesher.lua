@@ -423,8 +423,12 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
 
   -- `to` routes the quad somewhere other than the main sink -- the water
   -- surface is the only caller that ever does (see runGeometry's header).
-  local function topQuad(x0, z0, h, tile, shade, to)
-    local u0, u1, v0, v1 = uvRect(tile, 0, 8)
+  -- `vTop`/`vBot` crop the art to a row range of the tile, which only the
+  -- half-cell furniture rule below ever asks for: a top band that has to
+  -- cover more depth than it was drawn with hands each 8px cell its own
+  -- slice of the band instead of the whole of it.
+  local function topQuad(x0, z0, h, tile, shade, to, vTop, vBot)
+    local u0, u1, v0, v1 = uvRect(tile, vTop or 0, vBot or 8)
     ;(to or push)({ { x0, h, z0 }, { x0 + 8, h, z0 },
                     { x0 + 8, h, z0 + 8 }, { x0, h, z0 + 8 } },
                   { { u0, v0 }, { u1, v0 }, { u1, v1 }, { u0, v1 } },
@@ -585,6 +589,7 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
           topQuad(x0, z0, h, topTile, VOLUME_TOP_SHADE)
         else
           local topTile = tile
+          local vTop, vBot = nil, nil
           if s.art == "upright" and s.authored then
             -- Top art for a pinned box.  A furniture drawing is top-view
             -- rows over floor(h/8) face-on rows the fold stands upright;
@@ -611,6 +616,30 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
               end
             end
             local row = math.min(ty, front - math.floor(h / 8))
+            -- HALF-CELL FURNITURE, one cell of plot: the drawing gives ONE
+            -- tile row of top view (the counter's surface) over one that
+            -- folds up as the face (its front panel), and the plot under it
+            -- is 16px deep.  Repeating the top row over both depth rows --
+            -- what `row` above resolves to, since the face row has no top
+            -- art of its own to wear -- draws the surface TWICE: the
+            -- Centers' counters ran a black back edge and its white
+            -- highlight down the middle of every counter, and the push bell
+            -- drawn on one of them came out as two bells stacked front to
+            -- back.  The band is foreshortened, not tiled, so each depth row
+            -- takes HALF of it and the one drawing covers the whole top.
+            --
+            -- Deliberately narrow: only a run that is exactly one cell deep
+            -- with exactly one top row.  A deeper run states its own depth
+            -- 1:1 already (the lounge couch is four tile rows over two
+            -- cells, and its cushions must stay cushion-sized), and only the
+            -- last of its rows repeats -- which is the drawing tiling, not
+            -- a surface drawn once and stretched.
+            local face = math.floor(h / 8)
+            if front - face - north == 0 and front - north == 1 then
+              local k = ty - north
+              row = north
+              vTop, vBot = k * 4, k * 4 + 4
+            end
             if row < north then
               -- the whole run folded onto the face: top with the drawn
               -- row just above it when that row is furniture too (a
@@ -629,7 +658,7 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
           -- on the pond.
           topQuad(x0, z0, h, topTile,
                   s.art == "upright" and VOLUME_TOP_SHADE or 1,
-                  (s.class == "water") and waterPush or nil)
+                  (s.class == "water") and waterPush or nil, vTop, vBot)
         end
 
         -- sides: 8px bands wherever the neighbour is lower. Band k spans

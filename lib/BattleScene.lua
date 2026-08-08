@@ -40,7 +40,6 @@ local TerrainAtlas = V.require("TerrainAtlas")
 local VoxelScene = V.require("VoxelScene")
 local BattleCam = V.require("BattleCam")
 local BattleBillboard = V.require("BattleBillboard")
-local VoxelGrid = V.require("VoxelGrid")
 local DayNight = V.require("DayNight")
 local AntiAlias = V.require("AntiAlias")
 local PaletteFX = require("src.render.PaletteFX")
@@ -640,12 +639,10 @@ function BattleScene.render(state, arena, textures, token)
   local sunWas = Voxel3D.SHADOW_ALPHA
   Voxel3D.SHADOW_ALPHA = BattleScene.SHADOW_ALPHA
                          * DayNight.shadowScale(outdoor)
-  -- and the wireframe is ON for a battle whatever the V-GRID row says. The
-  -- arena is a staged shot rather than the world being walked through, and
-  -- the seams are what make it read as built rather than photographed. Forced
-  -- through the override so the player's own row is never written to.
-  local gridWas = VoxelGrid.override
-  VoxelGrid.override = true
+  -- The wireframe is whatever the V-GRID row says, exactly as it is out in
+  -- the world (see VoxelGrid): the arena is drawn a unit per voxel like
+  -- everything else, so the seams follow the one toggle and a player who
+  -- turned them off does not get them back for the length of a fight.
   local out = nil
   local ok, err = pcall(function()
     -- its own canvas slot: this renders at the window's pixel size and the
@@ -845,7 +842,6 @@ function BattleScene.render(state, arena, textures, token)
   -- renders (the free-roam pipeline, next frame) must find the orbit back
   Voxel3D.camera = nil
   Voxel3D.SHADOW_ALPHA = sunWas
-  VoxelGrid.override = gridWas
   if not ok then
     -- endScene never ran, so the canvas is still bound and the shader still
     -- set; put the frame back the way it was found before rethrowing

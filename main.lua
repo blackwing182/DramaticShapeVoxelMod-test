@@ -91,6 +91,8 @@ local BattleExit = V.require("BattleExit")
 local Shiny = V.require("Shiny")
 local ShinyBattle = V.require("ShinyBattle")
 local ShinyUI = V.require("ShinyUI")
+local ShinyPics = V.require("ShinyPics")
+local ShinyFlash = V.require("ShinyFlash")
 local DayNight = V.require("DayNight")
 local DayTint = V.require("DayTint")
 local Water = V.require("Water")
@@ -1185,14 +1187,35 @@ OverworldBattle.install()
 --   ShinyBattle  wraps Pokemon.new, which is where every wild, gift,
 --                starter and traded mon is built, so the roll lands before
 --                the sprite is baked
---   ShinyUI      the battle pics' tint and the status page's mark
---   ShinyFx      the arrival sparkle (armed from Stadium.update)
+--   ShinyUI      the status page's mark, and the summary pic's palette
+--   ShinyPics    the battle pic's palette -- a real recolour, baked into the
+--                image cache under a shiny key, on every rung that draws a
+--                pic (OFF, both 2D-3D rungs, and the cards a STADIUM battle
+--                still uses for a species with no model)
+--   ShinyFx      the arrival sparkle for the STADIUM rungs (3D, armed from
+--                Stadium.update)
+--   ShinyFlash   the same announcement for every OTHER rung, drawn in the
+--                Game Boy's own pixel grid over the pic
 --
 -- The Stadium models need no seam here at all: their recolour happens at
 -- extraction (lib/StadiumBuild.lua), and the battle simply asks for the
 -- shiny pack.
 ShinyBattle.install()
 ShinyUI.install()
+ShinyPics.install()
+ShinyFlash.install()
+
+-- ShinyPics needs to know WHICH Pokemon a pic is being built for, and the
+-- two palette functions it wraps are told only the species. The individual
+-- passes through here one call earlier: `pokemon.sprite` carries ctx.mon.
+--
+-- next() first and the return value untouched -- this reads the context and
+-- changes nothing about which art is chosen.
+mod.hooks:wrap("pokemon.sprite", function(next, path, ctx)
+  local out = next(path, ctx)
+  pcall(ShinyPics.note, ctx)
+  return out
+end)
 
 -- A save opened for the first time under this mod has shiny Pokemon in it
 -- already -- they always did -- so refresh the cached flag across the party

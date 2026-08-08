@@ -503,12 +503,22 @@ local active = false
 -- which is exactly the old behaviour minus the reflections.
 local DEPTH_FORMATS = { "depth24", "depth24stencil8", "depth32f", "depth16" }
 
+-- dpiscale = 1, for the same reason PixelCanvas pins it and for one more:
+-- newCanvas otherwise takes the WINDOW's scale, and every canvas bound
+-- together must agree on PIXEL dimensions. The colour canvas beside this one
+-- comes from PixelCanvas at scale 1, so on any surface whose scale is not 1
+-- -- Android's density is routinely 2.625, and a retina Mac's is 2 -- this
+-- one came back 2.625x larger and the pair would not bind. beginScene then
+-- dropped the readable depth for the session (see below), depthReadable()
+-- went false, and the water pass never ran at all: the reflections were
+-- missing on every high-density display, with nothing in the log to say so,
+-- because a canvas that will not BIND is not a canvas the driver refused.
 local function newDepth(w, h)
   if not (love.graphics and love.graphics.newCanvas) then return nil end
   local c = nil
   for _, format in ipairs(DEPTH_FORMATS) do
     local ok, made = pcall(love.graphics.newCanvas, w, h,
-                           { format = format, readable = true })
+                           { format = format, readable = true, dpiscale = 1 })
     if ok and made then c = made break end
   end
   if not c then return nil end
@@ -1344,7 +1354,10 @@ end
 function Voxel3D.beginWater(paint)
   if not (active and canvas and held and held.depth) then return nil end
   if not held.mirror then
-    local ok, c = pcall(love.graphics.newCanvas, held.w, held.h)
+    -- through PixelCanvas, because this one is bound WITH held.depth a few
+    -- lines down and the two must agree on pixel dimensions -- the same
+    -- scale trap newDepth documents
+    local ok, c = PixelCanvas.new(held.w, held.h)
     if not (ok and c) then return nil end
     pcall(c.setFilter, c, "nearest", "nearest")
     pcall(c.setWrap, c, "clamp", "clamp")

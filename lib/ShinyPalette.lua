@@ -368,17 +368,128 @@ end
 -- So: slide species use the slide, which is defined on all colours. Table
 -- species fall back to their tint multiplier, which IS derived from the
 -- table and does carry its direction.
+-- ------- reading a SLIDE back out of a lookup table
+--
+-- A multiply was the first answer here and it is not good enough. Gyarados is
+-- the whole argument: its shiny is BLUE TURNING RED, and no multiply reaches
+-- red from blue -- it can only darken what is already there, so the most
+-- dramatic shiny in the game came out a dull mauve. That is the same ceiling
+-- the flat tint hit (see lib/ShinyPics.lua), reached from the other side.
+--
+-- But the table is not just a direction, it is the ANSWER: 1857 exact
+-- (normal -> shiny) pairs lifted from Stadium's own alternate textures. Read
+-- as HSL, each pair is a hue rotation, a saturation scale and a lightness
+-- step -- which is precisely the shape of a slide. So the five table species
+-- get a slide MEASURED from their own table rather than declared, and the one
+-- transform serves all 151.
+--
+-- Averaged over the pairs because a real alternate texture is not a perfect
+-- slide -- that is why it is a texture -- but it is close enough to one that
+-- the mean carries the change a player actually sees.
+--
+--   hue         circularly (sum the unit vectors), or opposite rotations
+--               would cancel to "no change"
+--   saturation  as GIMP's k, s2 = s1 * (1 + k), skipping near-grey pairs
+--               where the ratio is noise
+--   lightness   as GIMP's two-sided k, matching shiftLight
+local slideCache = {}
+
+local function slideFromLut(lut)
+  local sx, sy, hueN = 0, 0, 0
+  local sk, sn, lk, ln = 0, 0, 0, 0
+  for key, val in pairs(lut) do
+    local r1 = floor(key / 65536) % 256
+    local g1 = floor(key / 256) % 256
+    local b1 = key % 256
+    local r2 = floor(val / 65536) % 256
+    local g2 = floor(val / 256) % 256
+    local b2 = val % 256
+    local h1, s1, l1 = rgbToHsl(r1, g1, b1)
+    local h2, s2, l2 = rgbToHsl(r2, g2, b2)
+    -- an achromatic end has no hue, so the pair says nothing about rotation
+    if s1 > 0.08 and s2 > 0.08 then
+      -- DEGREES, both of them: rgbToHsl returns h*60 and hslToRgb takes
+      -- `h % 360`, so the declared slides are in degrees too (-136 for
+      -- Charizard) and a measured one has to come out in the same unit. It
+      -- did not at first, and a rotation of 0.13 TURNS read as 0.13 degrees:
+      -- Gyarados stayed blue and the whole point of measuring was lost.
+      local d = math.rad(h2 - h1)
+      sx, sy = sx + math.cos(d), sy + math.sin(d)
+      hueN = hueN + 1
+      sk, sn = sk + (s2 / s1 - 1), sn + 1
+    end
+    if l1 > 0.02 and l1 < 0.98 then
+      lk = lk + (l2 < l1 and (l2 / l1 - 1) or ((l2 - l1) / (1 - l1)))
+      ln = ln + 1
+    end
+  end
+  local dh = 0
+  if hueN > 0 and (sx * sx + sy * sy) > 1e-9 then
+    dh = math.deg(math.atan2(sy, sx))
+  end
+  -- back into the -8..+8 STEPS the slide fields are in, so the value that
+  -- comes out of here is the same kind of number as the 146 declared ones
+  return {
+    h = dh,
+    s = sn > 0 and (sk / sn) / 0.125 or 0,
+    l = ln > 0 and (lk / ln) / 0.125 or 0,
+  }
+end
+
+-- A transform for PALETTE colours rather than texture texels.
+--
+-- The two are not the same job. A lookup table answers only the colours that
+-- are IN it -- the ones its model is painted with -- and the engine's palettes
+-- are a different set entirely (BLUEMON's blue is not any blue on the
+-- Gyarados model), so the table asked to shift a palette returns it unchanged
+-- and the most dramatic shiny in the game comes out identical.
+--
+-- So: slide species use their declared slide, and table species use one
+-- measured out of their table by slideFromLut above. Both end up in the same
+-- HSL transform, which is the only kind that can rotate a hue.
+-- ------- and why the LIGHTNESS step is damped on a palette
+--
+-- A slide's l is authored against a TEXTURE: thousands of texels spread
+-- across the middle of the range, where "six steps darker" reads as a shadow
+-- falling over the animal. A Game Boy palette is not that. It is a four-shade
+-- RAMP from paper to ink, and only the middle two shades are the Pokemon --
+-- both already dark relative to the white they sit on, and both needing to
+-- stay clear of the fixed ink below them.
+--
+-- Applied whole, Golbat's -6 took its two shades to 27,42,37 and 34,58,52:
+-- correct green, and a green nobody can see against a 25,16,16 outline. Half
+-- the step keeps the direction and keeps the pic readable, which is the trade
+-- the ramp forces. Hue and saturation are untouched -- they are what makes a
+-- shiny recognisable as one, and neither collides with the paper or the ink.
+ShinyPalette.PALETTE_LIGHT_DAMP = 0.5
+
 function ShinyPalette.paletteTransform(dex)
   local spec = ShinyPalette.forDex(dex)
+  local slide = spec and spec.slide
   if not spec then return nil end
-  if not spec.lut then return ShinyPalette.transform(spec) end
-  local t = ShinyPalette.tintFor(dex)
-  if not t then return nil end
-  return function(r, g, b)
-    return floor(min(255, r * t[1]) + 0.5),
-           floor(min(255, g * t[2]) + 0.5),
-           floor(min(255, b * t[3]) + 0.5)
+  if spec.lut then
+    if slideCache[dex] == nil then
+      slideCache[dex] = slideFromLut(spec.lut) or false
+    end
+    slide = slideCache[dex] or nil
   end
+  if not slide then return nil end
+  return slideFn({
+    h = slide.h or 0,
+    s = slide.s or 0,
+    l = (slide.l or 0) * ShinyPalette.PALETTE_LIGHT_DAMP,
+  })
+end
+
+-- The measured slide itself, for the tests and for anyone checking the five
+-- against Stadium's own textures.
+function ShinyPalette.lutSlide(dex)
+  local spec = ShinyPalette.forDex(dex)
+  if not (spec and spec.lut) then return nil end
+  if slideCache[dex] == nil then
+    slideCache[dex] = slideFromLut(spec.lut) or false
+  end
+  return slideCache[dex] or nil
 end
 
 -- ------- the pass over one species' whole texture array
