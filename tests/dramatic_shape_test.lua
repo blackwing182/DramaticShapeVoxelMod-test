@@ -7002,6 +7002,258 @@ end)()
   T.check(ball.stars == nil, "and the stars burn out on their own")
 end)()
 
+-- ------- an interior wall caps with its own plain course
+--
+-- A wall band is 16px of art over a run two drawn rows deep, so it folds
+-- ENTIRELY onto its south face and has no drawn row left to lay flat on
+-- top. The top therefore repeated the face: the town house's town-map
+-- poster and window, and the Pokemon Center's pokeball poster, came out
+-- lying across the top of the wall as well as hanging on it -- a picture
+-- you look DOWN on from the voxel camera.
+--
+-- `wall_top` names the capping course per tileset (the plain panel the
+-- decorated column's own neighbours draw), and it is a fact about the
+-- drawing that no measurement of the geometry can recover -- nothing
+-- distinguishes "poster" from "panel" but knowing which is which.
+;(function()
+  local Mesher = run.loader.exports.DRAMATIC_SHAPE.lib.require("ChunkMesher")
+  local Struct = run.loader.exports.DRAMATIC_SHAPE.lib.require("Structures")
+  local Shape = run.loader.exports.DRAMATIC_SHAPE.lib.require("TileShape")
+
+  -- the blanket form: whatever a wall cell draws, it caps with the one
+  -- course the atlas's rooms are panelled in
+  T.eq(Shape.wallTop("HOUSE")(45), 0,
+    "the town house caps its walls with the blank course")
+  T.eq(Shape.wallTop("POKECENTER")(2), 40,
+    "and a Center with its striped panel -- the tile cell (9,0) draws")
+  T.eq(Shape.wallTop("REDS_HOUSE_2")(36), 0,
+    "Red's bedroom with its own blank panel, over the window")
+  T.eq(Shape.wallTop("REDS_HOUSE_1")(36), 0, "and so does the floor below")
+  -- the keyed form, for an atlas that dresses more than one kind of room
+  T.eq(Shape.wallTop("LOBBY")(40), 93,
+    "the Rocket lift's car door caps with the cabin frame")
+  T.eq(Shape.wallTop("LOBBY")(1), nil,
+    "but the department store's own panel is left exactly as it was -- "
+    .. "one atlas, several rooms, and only the lift is a lift")
+  T.eq(Shape.wallTop("DS_NO_SUCH_TILESET"), nil,
+    "a tileset that says nothing keeps the top it always had")
+
+  local FLOOR = 1
+  local function topTiles(tilesetId, rows)
+    local map = {
+      id = "DS_TEST_WALLTOP_" .. tilesetId,
+      tileset = { id = tilesetId, image = "gfx/tilesets/ds_test.png",
+                  tilesPerRow = 16, imageWidth = 128, imageHeight = 48,
+                  blocks = {}, grassTile = -1 },
+      def = { width = 4, height = 2, tileset = tilesetId },
+      walkable = { [FLOOR] = true },
+      waterTiles = {},
+      doorTiles = {},
+      tileAt = function(_, tx, ty)
+        local r = rows[ty + 1]
+        return (r and r[tx + 1]) or FLOOR
+      end,
+      cellTile = function(self, cx, cy) return self:tileAt(cx * 2, cy * 2 + 1) end,
+      isWaterCell = function() return false end,
+      isWalkableCell = function(self, cx, cy)
+        return self:cellTile(cx, cy) == FLOOR
+      end,
+      inBounds = function(_, cx, cy)
+        return cx >= 0 and cy >= 0 and cx < 4 and cy < 2
+      end,
+    }
+    Struct.invalidate(map.id)
+    local verts = Mesher.geometry(map, true, nil)
+    -- the flat quads standing at wall height, keyed by the column they cap
+    local out = {}
+    for i = 1, #verts, 4 do
+      local a, b, c, d = verts[i], verts[i + 1], verts[i + 2], verts[i + 3]
+      if a[2] == b[2] and b[2] == c[2] and c[2] == d[2] and a[2] == 16 then
+        local ax = math.floor(math.min(a[4], b[4], c[4], d[4]) * 128 + 0.5)
+        local ay = math.floor(math.min(a[5], b[5], c[5], d[5]) * 48 + 0.5)
+        local tx = math.floor(math.min(a[1], b[1], c[1], d[1]) / 8)
+        local ty = math.floor(math.min(a[3], b[3], c[3], d[3]) / 8)
+        -- keyed by the TILE ROW too: a wall band is two drawn rows deep
+        -- and they can wear different art
+        out[ty * 100 + tx] = out[ty * 100 + tx]
+                             or (math.floor(ay / 8) * 16 + math.floor(ax / 8))
+      end
+    end
+    return out, verts
+  end
+
+  -- BLUES_HOUSE's back wall: blank panel, the town-map poster (45/46 over
+  -- 61/62) at cell (3,0)'s block, the window (36 over 52) at (5,0)'s
+  local houseTops, houseVerts = topTiles("HOUSE", {
+    { 0, 0, 45, 46, 36, 36, 0, 0 },
+    { 0, 0, 61, 62, 52, 52, 0, 0 },
+  })
+  for ty = 0, 1 do
+    for tx = 0, 7 do
+      T.eq(houseTops[ty * 100 + tx], 0,
+        ("(%d,%d) of the house's back wall caps with the blank course")
+        :format(tx, ty))
+    end
+  end
+
+  -- and the FACE is untouched: the poster still hangs in the room, which is
+  -- the half of this the fix must not take with it
+  local hung = {}
+  for _, v in ipairs(houseVerts) do
+    hung[math.floor(math.floor(v[5] * 48 + 0.5) / 8) * 16
+         + math.floor(math.floor(v[4] * 128 + 0.5) / 8)] = true
+  end
+  T.check(hung[45] and hung[46] and hung[61] and hung[62],
+    "the town-map poster is still drawn on the wall it hangs on")
+  T.check(hung[36] and hung[52], "and so is the window")
+
+  -- VIRIDIAN_POKECENTER's back wall: the striped panel with the pokeball
+  -- poster (2/3 over 18/19) spanning cells (3,0) and (4,0)
+  local pcTops = topTiles("POKECENTER", {
+    { 40, 40, 40, 2, 3, 40, 40, 40 },
+    { 40, 40, 40, 18, 19, 40, 40, 40 },
+  })
+  for ty = 0, 1 do
+    for tx = 0, 7 do
+      T.eq(pcTops[ty * 100 + tx], 40,
+        ("(%d,%d) of the Center's back wall caps with the striped panel")
+        :format(tx, ty))
+    end
+  end
+
+  -- ------- the Rocket lift's car doors
+  --
+  -- Detected rather than pinned -- the doors are a volume Structures finds
+  -- -- so the cap has to reach the RUN branch too, not only the pinned one.
+  local liftTops = topTiles("LOBBY", {
+    { 92, 92, 92, 92, 92, 92, 92, 92 },
+    { 93, 93, 93, 93, 93, 93, 93, 93 },
+    {  1,  1, 40, 40, 40, 40,  1,  1 },
+    { 33, 33, 56, 56, 56, 56, 33, 33 },
+  })
+  -- rows 2 and 3 are the doors' own band; the doors span columns 2-5
+  for ty = 2, 3 do
+    for tx = 2, 5 do
+      T.eq(liftTops[ty * 100 + tx], 93,
+        ("(%d,%d) of the lift's door caps with the cabin frame"):format(tx, ty))
+    end
+  end
+  -- and the panelling either side of them is left alone, which is what the
+  -- keyed form buys: the same atlas panels the department store
+  T.eq(liftTops[2 * 100], 1, "the blank course beside the door is untouched")
+  T.eq(liftTops[3 * 100], 33, "and so is its skirting")
+end)()
+
+-- ------- Lance's room is furnished with the badge gyms' statue
+--
+-- The same drawing on a different atlas: one cell of bird over one cell of
+-- plinth. Left derived the pair merged into one 32px volume wearing the
+-- statue folded onto its face -- the extruded picture. The gyms' reading
+-- (solid plinth, per-pixel standee on top) is the right one here too, and
+-- these eight tiles draw nothing else anywhere in the game.
+;(function()
+  local Shape = run.loader.exports.DRAMATIC_SHAPE.lib.require("TileShape")
+  local shapes = Shape.forMap({
+    tileset = { id = "DOJO", tilesPerRow = 16,
+                imageWidth = 128, imageHeight = 48, grassTile = -1 },
+    walkable = { [17] = true },
+  })
+  for _, t in ipairs({ 2, 18, 19, 56 }) do
+    T.eq(shapes[t].class, "prop",
+      ("the statue's figure tile %d stands as a per-pixel cutout"):format(t))
+    T.eq(shapes[t].authored, true, "and it is an authored answer, not derived")
+  end
+  for _, t in ipairs({ 34, 35, 50, 51 }) do
+    T.eq(shapes[t].class, "wall",
+      ("the plinth tile %d stays a solid 16px block"):format(t))
+    T.eq(shapes[t].authored, true,
+      "authored, which is what the standee's support rule tests -- and "
+      .. "what keeps tile 50 ($32) out of the water-fallback trap")
+  end
+  T.eq(shapes[13].class, "bookcase",
+    "and Oak's shelf ranks on the same atlas are untouched")
+end)()
+
+-- ------- a wall cut into a terrace inherits TERRACE, never a statue
+--
+-- `bookcase_backfill = "above"` hands a vacated row the cell above the run,
+-- so masonry set into a hillside has more hillside behind it rather than a
+-- trench. Indigo Plateau's avenue statues stand directly on the pilasters
+-- that collapse this way, so what every one of them inherited was the BIRD:
+-- the figure's shape and art copied onto two more rows down the shaft, and
+-- the statue came out two deep behind itself. A standee above is an object
+-- standing ON the terrace, not terrace -- so there is nothing to inherit.
+;(function()
+  local Struct = run.loader.exports.DRAMATIC_SHAPE.lib.require("Structures")
+  -- the real west-edge statue of INDIGO_PLATEAU, tile for tile: the bird
+  -- (37/38 over 40/41) on the pilaster (cap 21/22, shaft 5/6 twice, foot
+  -- 21/22), standing on the plateau's paving (35)
+  local rows = {
+    { 46, 47 }, { 46, 47 },
+    { 37, 38 }, { 40, 41 },
+    { 21, 22 }, {  5,  6 },
+    {  5,  6 }, { 21, 22 },
+    { 35, 35 }, { 35, 35 },
+    { 35, 35 }, { 35, 35 },
+  }
+  local map = {
+    id = "DS_TEST_PLATEAU_STATUE",
+    tileset = { id = "PLATEAU", image = "gfx/tilesets/ds_test.png",
+                tilesPerRow = 16, imageWidth = 128, imageHeight = 40,
+                blocks = {}, grassTile = -1 },
+    def = { width = 1, height = 3, tileset = "PLATEAU" },
+    walkable = { [35] = true },
+    waterTiles = {},
+    doorTiles = {},
+    tileAt = function(_, tx, ty)
+      local r = rows[math.max(1, math.min(#rows, ty + 1))]
+      return r[(tx % 2) + 1]
+    end,
+    cellTile = function(self, cx, cy) return self:tileAt(cx * 2, cy * 2 + 1) end,
+    isWaterCell = function() return false end,
+    isWalkableCell = function(self, cx, cy)
+      return self:cellTile(cx, cy) == 35
+    end,
+    isDoorTileCell = function() return false end,
+    isGrassCell = function() return false end,
+    inBounds = function(_, cx, cy)
+      return cx >= 0 and cy >= 0 and cx < 2 and cy < 6
+    end,
+  }
+  Struct.invalidate(map.id)
+  local S = Struct.forMap(map)
+  local function keyOf(tx, ty) return (ty + 64) * 4096 + (tx + 64) end
+
+  -- the bird stands, once, where it is drawn
+  for _, ty in ipairs({ 2, 3 }) do
+    T.eq(S.shapeAt[keyOf(0, ty)].art, "billboard",
+      "the statue's own rows carry the standee")
+  end
+  -- and the pilaster rows it vacates carry NOTHING -- not a second bird
+  for _, ty in ipairs({ 4, 5, 6, 7 }) do
+    local s = S.shapeAt[keyOf(0, ty)]
+    T.check(s == nil or s.art ~= "billboard",
+      ("pilaster row %d did not inherit the statue standing on it"):format(ty))
+  end
+
+  -- ...and the bird stands on the box rather than where it is DRAWN. The
+  -- collapse walks the whole four-row pilaster onto its southmost cell, so
+  -- a standee that trusted its own drawn position ended up a full cell
+  -- north of the pillar holding it up -- at the right height, over open
+  -- ground. Every row of the rank records where the box actually went.
+  for _, ty in ipairs({ 4, 5, 6, 7 }) do
+    T.eq(S.bookcaseBox[keyOf(0, ty)], 6,
+      ("rank row %d knows the box stands on row 6"):format(ty))
+  end
+  local zlo = math.huge
+  for _, q in ipairs(S.objectQuads) do
+    for i = 1, 4 do zlo = math.min(zlo, q[i][3]) end
+  end
+  T.eq(math.floor(zlo / 8), 6,
+    "and the statue's own geometry starts on that row -- standing on the "
+    .. "pillar, not hanging in the air two cells in front of it")
+end)()
+
 Pipelines.reset()
 run.release()
 

@@ -131,6 +131,91 @@
   strips the way a facade's does) and no voxels: the recess removes as
   many faces as it exposes.
 
+### Fixed
+
+- **The Pokemon Center's steps climb.** The Cable Club stairs, cut into
+  the back wall of all eleven Centers, were built as a stairwell sunk
+  into the floor -- they lead UP to the Center's second floor. The
+  head-on stair reading was right and stays: a drawn ROW is a step and
+  drawn row is depth row, 1:1 into the opening, the drawing's own band
+  table landing exactly on four steps and its black edge columns walling
+  the opening. Only the sign of the rise was wrong, and two things follow
+  from it. The risers turn around -- a flight descending away from you
+  closes its steps from below and shows you their backs, one climbing
+  away shows you their fronts -- and the black edge columns become the
+  walls of the opening the flight climbs into, running from each tread up
+  to the top of the wall band rather than down from the floor to it. The
+  top step lands level with that band, in the dark rows the artist drew
+  there, so the flight fills the opening it leaves by. The descending
+  class (`stair_down_n`) is unchanged and still available; the Centers
+  now pin `stair_n`.
+
+- **Nothing is hung on the TOP of an interior wall.** A wall band is 16px
+  of art folded upright over a run two drawn rows deep, so it folds
+  entirely onto its south face and has no drawn row left to lay flat on
+  top -- and the top then repeated the face. The town house's town-map
+  poster (cell (3,0)) and its window ((5,0)), and the Pokemon Center's
+  pokeball poster ((3,0) and (4,0)), each came out lying across the top
+  of the wall as well as hanging on it: a picture you look DOWN on.
+
+  What is really up there is the wall's own capping course, which is
+  exactly the plain panel the decorated column's neighbours draw --
+  `wall_top` in `data/voxel_heights.lua` names it per tileset (HOUSE caps
+  with the blank course, POKECENTER with the striped panel cell (9,0)
+  draws). Per tileset rather than per tile because one room caps with one
+  course, and because "plain" is a fact about the drawing that no
+  measurement of the geometry can recover. Only the top face is
+  redirected; the poster still faces the room.
+
+  Five rooms take it. `HOUSE`, `POKECENTER`, `REDS_HOUSE_1` and
+  `REDS_HOUSE_2` name one course for every wall in the atlas -- each of
+  those dresses one kind of room, and a list keyed by the decorated tiles
+  would need extending every time a map hung something new on the same
+  wall. `LOBBY` names the tiles instead (`{ [40] = 93, [56] = 93 }`): the
+  Rocket lift's car doors cap with the cabin frame, and the department
+  store, the Game Corner, Silph's floors and the roof -- all on that one
+  atlas -- keep exactly the tops they had. The doors are also the reason
+  the cap is applied in the mesher's DETECTED-run branch as well as its
+  pinned one; Structures finds them rather than a pin naming them.
+
+- **Lance's room is furnished with the badge gyms' bird statue.** It is
+  the gyms' statue tile for tile on the DOJO atlas -- one cell of figure
+  ($02/$38/$12/$13) over one cell of plinth ($22/$23/$32/$33) -- and left
+  derived the pair merged into one 32px volume wearing the statue folded
+  onto its face. The extruded picture, the same failure the gyms' statues
+  and the Plateau's avenue had, and it takes the same answer: the plinth a
+  solid 16px block, the bird a per-pixel cutout 5 voxels deep riding its
+  top face. Every placement of those eight tiles in the game is a statue
+  -- 18 in LANCES_ROOM and 2 in FIGHTING_DOJO -- and Oak's Lab, the third
+  map on the atlas, places none of them.
+
+- **A wall cut into a terrace inherits terrace, never the statue standing
+  on it.** `bookcase_backfill = "above"` hands a collapsed rank's vacated
+  rows the cell above the run, so the League's gate walls have more
+  hillside behind them rather than a trench. Indigo Plateau's avenue
+  statues stand directly on the pilasters that collapse that way, so what
+  every one of them inherited was the BIRD: the figure's shape and art
+  copied onto two more rows down the shaft, and each statue came out two
+  deep behind itself. Only bodies backfill now -- flat, top and upright.
+  A per-pixel standee above (a statue, a sign, a bush) is an object
+  standing ON the terrace rather than terrace, so the row has nothing to
+  inherit and takes the default synthesized ground.
+
+- **...and a statue on a collapsed pilaster stands ON it.** The duplicate
+  above was masking a second fault. A standee finds its support by reading
+  the cell below its own drawing, and the bookcase collapse MOVES the box
+  it finds: the whole four-row pilaster walks onto its southmost cell,
+  which on the Plateau is a full cell south of where the test looked. So
+  the bird was lifted to the right HEIGHT and left standing over open
+  ground with its pillar behind it -- invisible while the vacated rows
+  were being filled with copies of the bird itself, obvious the moment
+  they were not. Every row of a collapsed rank now records the row its box
+  actually stands on (`S.bookcaseBox`), and a standee supported by one is
+  placed there instead of at its drawn position. Supports that do not move
+  -- the gyms' plinths, furniture, `building` claims -- are unaffected.
+  The plinth keeps its elevation and the statue extends exactly one cell
+  above it.
+
 ## 1.8.0
 
 ### Added
