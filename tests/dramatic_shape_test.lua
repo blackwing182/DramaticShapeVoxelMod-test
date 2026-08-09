@@ -3041,12 +3041,15 @@ T.check(plain:find("LOVE_HIGHP_OR_MEDIUMP vec3 vBent", 1, true) ~= nil,
   .. "rather than left to the fragment default")
 T.check(plain:find("LOVE_HIGHP_OR_MEDIUMP Image depthTex", 1, true) ~= nil,
   "and the depth sampler is lifted off lowp, which is eight bits of depth")
-T.check(plain:find(
-    "effect(mediump vec4 color, Image tex, mediump vec2 tc, mediump vec2 sc)",
-    1, true) ~= nil,
+T.check(plain:find("effect(EFFECT_PREC vec4 color", 1, true) ~= nil
+        and plain:find("#define EFFECT_PREC mediump", 1, true) ~= nil,
   "effect()'s own floats stay pinned to LOVE's prototype precision -- the "
   .. "Xclipse compiler reads a definition that drifted from the forward "
   .. "declaration as an illegal overload and refuses the whole shader")
+T.check(Water._source(false, true):find("#define EFFECT_PREC\n", 1, true)
+        ~= nil,
+  "and the bare shape is the fallback compile, because 11 and 12 forward-"
+  .. "declare effect() differently and only the runtime knows which it is")
 T.check(plain:find("sc / love_ScreenSize.xy", 1, true) ~= nil,
   "the depth test normalises the pixel coord by the canvas's own pixel "
   .. "size -- `screen` counts canvas UNITS, and on a highdpi phone the two "
@@ -4681,6 +4684,47 @@ ForestAtmos.setting:sync("off")
 T.check(ForestAtmos.frame(fmap, DayNight.T.day) == nil,
   "OFF answers no frame at all: no fog uniform, no draw, no spend")
 ForestAtmos.setting:sync("full")
+
+-- ------- the same four Android fixes the water shader already carries
+--
+-- The rays were written after Water had learned all of this and inherited
+-- none of it, which is the whole of "the god rays used shaders that did
+-- not work on my Fold 7": a Fold 7 is an Xclipse, and every trap below is
+-- one that answers with NO shader rather than a wrong picture.
+local ray = ForestAtmos._source(ForestAtmos._RAY_SHADER)
+T.check(ray:find("precision highp float;", 1, true) ~= nil
+        and ray:find("GL_FRAGMENT_PRECISION_HIGH", 1, true) ~= nil,
+  "the march lifts GLSL ES's mediump fragment default, guarded so a GPU "
+  .. "without fragment highp still compiles -- a world coordinate of two "
+  .. "thousand has no fraction left in fp16")
+T.check(ray:find("LOVE_HIGHP_OR_MEDIUMP vec3 vRay", 1, true) ~= nil,
+  "the frustum-ray varying is qualified: both stages declare it, their "
+  .. "defaults disagree, and GLSL ES answers that by refusing to LINK")
+T.check(ray:find("LOVE_HIGHP_OR_MEDIUMP Image depthTex", 1, true) ~= nil,
+  "and the depth sampler is lifted off the lowp default, which is eight "
+  .. "bits of depth for a march to land on")
+T.check(ray:find("effect(EFFECT_PREC vec4 color", 1, true) ~= nil
+        and ray:find("EFFECT_PREC vec2 sc)", 1, true) ~= nil
+        and ray:find("#define EFFECT_PREC mediump", 1, true) ~= nil,
+  "effect() is pinned to LOVE's prototype precision, which Xclipse compares "
+  .. "against the forward declaration and rejects as an overload when the "
+  .. "two drift apart")
+T.check(ForestAtmos._source(ForestAtmos._RAY_SHADER, true)
+          :find("#define EFFECT_PREC\n", 1, true) ~= nil,
+  "and the bare shape exists too, because 11 and 12 forward-declare it "
+  .. "differently and only the runtime knows which it brought")
+T.check(ray:find("sc / love_ScreenSize.xy", 1, true) ~= nil
+        and ray:find("uniform vec2 screen", 1, true) == nil,
+  "uv comes off the canvas's own PIXEL size -- a `screen` uniform counts "
+  .. "units, and on a highdpi phone the depth lookup lands elsewhere")
+
+local part = ForestAtmos._source(ForestAtmos._PART_SHADER)
+T.check(part:find("LOVE_HIGHP_OR_MEDIUMP vec2 vCorner", 1, true) ~= nil
+        and part:find("LOVE_HIGHP_OR_MEDIUMP float vGlow", 1, true) ~= nil,
+  "the motes' varyings carry small numbers and are qualified anyway: the "
+  .. "link refusal is about the two stages DISAGREEING, not about range")
+T.check(part:find("effect(EFFECT_PREC vec4 color", 1, true) ~= nil,
+  "and their effect() is pinned like the march's")
 end
 
 -- ------- a shadow keeps hold of the feet that throw it

@@ -409,7 +409,11 @@ ForestAtmos.layoutFor = layoutFor
 -- Android driver that reads them as zero.
 
 local RAY_SHADER = [[
-  varying vec3 vRay;
+  // Declared by BOTH stages, and GLSL ES defaults the vertex side to highp
+  // and the fragment side to mediump -- a disagreement it refuses to LINK,
+  // which is not dim beams but no ray shader at all. Same qualifier Water's
+  // vBent carries, for the same reason.
+  varying LOVE_HIGHP_OR_MEDIUMP vec3 vRay;
 #ifdef VERTEX
   attribute vec3 RayDir;
   vec4 position(mat4 transform_projection, vec4 vertex_position) {
@@ -418,7 +422,21 @@ local RAY_SHADER = [[
   }
 #endif
 #ifdef PIXEL
-  uniform Image depthTex;    // the frame's own depth, detached to read
+  // The march walks WORLD units through the frame's matrices, and GLSL ES
+  // defaults fragment floats to mediump -- fp16 has no fraction left at a
+  // coordinate of two thousand, and quantises the depth into steps the
+  // march falls straight through. The guard keeps a GPU without fragment
+  // highp compiling, and such a driver loses the beams and keeps the fog,
+  // exactly as a refusal already does.
+#ifdef GL_ES
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#endif
+#endif
+  // Samplers default to LOWP whatever floats are set to, and eight bits of
+  // depth is a march with nothing to land on. sunMap and leafTex are read
+  // as honest 8-bit and can stay.
+  uniform LOVE_HIGHP_OR_MEDIUMP Image depthTex;
   uniform Image sunMap;      // the sun's answer (see ShadowMap)
   uniform Image leafTex;     // the unseen foliage, tiling
   uniform mat4 vp;
@@ -426,7 +444,6 @@ local RAY_SHADER = [[
   uniform float sunBias;
   uniform vec3 eye;
   uniform vec3 curve;        // xy = the focus in world XZ, z = k; 0 = off
-  uniform vec2 screen;       // canvas size, for the pixel's own uv
   uniform vec4 fogW;         // density, heightK, canopyY, fadeTo
   uniform vec3 shear;        // the noon shear kx, kz; z = reach
   uniform vec3 rayColor;
@@ -460,8 +477,19 @@ local RAY_SHADER = [[
     return c.r + c.g * (1.0 / 255.0);
   }
 
-  vec4 effect(vec4 color, Image tex, vec2 tc, vec2 sc) {
-    vec2 uv = sc / screen;
+  // EFFECT_PREC: LOVE's header forward-declares effect() with parameter
+  // precisions of its own, and Samsung's Xclipse holds that a definition
+  // whose qualifiers differ from the prototype's is a SECOND function of
+  // the same name -- and refuses the pair, silently, leaving no beams.
+  // Which precision the prototype used is not ours to know (11 and 12
+  // disagree), so it is a define the Lua side fills in and rayShaderFor
+  // compiles both shapes; one of the two matches whatever runtime this is.
+  vec4 effect(EFFECT_PREC vec4 color, Image tex, EFFECT_PREC vec2 tc,
+              EFFECT_PREC vec2 sc) {
+    // love_ScreenSize is the canvas the driver is actually rasterising to,
+    // in pixels. A `screen` uniform sent in units is the same number until
+    // highdpi, where it is not, and the whole march reads the wrong texel.
+    vec2 uv = sc / love_ScreenSize.xy;
     float sceneD = Texel(depthTex, uv).r;
     vec3 dir = normalize(vRay);
     // Spend every sample where a sample can glow. Above the canopy no
@@ -543,6 +571,27 @@ local RAY_SHADER = [[
 #endif
 ]]
 
+-- Empty is a define all the same: the params then carry the stage default,
+-- which is what a prototype declared without qualifiers wants.
+local function source(src, bare)
+  return (bare and "#define EFFECT_PREC\n"
+                or "#define EFFECT_PREC mediump\n") .. src
+end
+
+-- The pinned prototype first, the bare one only if that is refused. A
+-- driver that takes neither was never going to draw beams anyway.
+local function compile(src)
+  local ok, sh = pcall(love.graphics.newShader, source(src))
+  if not ok then
+    local bareOk, bareSh = pcall(love.graphics.newShader, source(src, true))
+    if bareOk then return true, bareSh end
+  end
+  return ok, sh
+end
+
+ForestAtmos._source = source           -- named for the suite
+ForestAtmos._RAY_SHADER = RAY_SHADER
+
 local function rayShaderFor(steps)
   local key = "ray" .. steps
   local s = shaders[key]
@@ -552,7 +601,7 @@ local function rayShaderFor(steps)
     return nil
   end
   local src = "#define STEPS " .. steps .. "\n" .. RAY_SHADER
-  local ok, sh = pcall(love.graphics.newShader, src)
+  local ok, sh = compile(src)
   if not ok then
     say(key, "ray shader refused -- beams off, fog stays: "
         .. tostring(sh))
@@ -621,8 +670,11 @@ end
 -- ------- the particles
 
 local PART_SHADER = [[
-  varying vec2 vCorner;
-  varying float vGlow;
+  // Small numbers either way, so this is not about range: a varying whose
+  // two stages default to different precisions is refused at LINK time,
+  // and a refusal here is every mote gone. Same fix as the ray shader.
+  varying LOVE_HIGHP_OR_MEDIUMP vec2 vCorner;
+  varying LOVE_HIGHP_OR_MEDIUMP float vGlow;
 #ifdef VERTEX
   uniform mat4 vp;
   uniform vec3 curve;
@@ -675,7 +727,8 @@ local PART_SHADER = [[
 #ifdef PIXEL
   uniform vec3 dotColor;
   uniform float level;
-  vec4 effect(vec4 color, Image tex, vec2 tc, vec2 sc) {
+  vec4 effect(EFFECT_PREC vec4 color, Image tex, EFFECT_PREC vec2 tc,
+              EFFECT_PREC vec2 sc) {
     float d = dot(vCorner, vCorner);
     float glow = max(0.0, 1.0 - d);
     glow *= glow;
@@ -684,6 +737,8 @@ local PART_SHADER = [[
 #endif
 ]]
 
+ForestAtmos._PART_SHADER = PART_SHADER -- named for the suite
+
 local function partShader()
   local s = shaders.part
   if s ~= nil then return s or nil end
@@ -691,7 +746,7 @@ local function partShader()
     shaders.part = false
     return nil
   end
-  local ok, sh = pcall(love.graphics.newShader, PART_SHADER)
+  local ok, sh = compile(PART_SHADER)
   shaders.part = (ok and sh) or false
   return shaders.part or nil
 end
@@ -822,7 +877,6 @@ function ForestAtmos.draw(map)
         pcall(sh.send, sh, "cullAt", cullAt())
         pcall(sh.send, sh, "cullShape", cullShape())
         pcall(sh.send, sh, "cullRect", cullRect())
-        pcall(sh.send, sh, "screen", { w, h })
         pcall(sh.send, sh, "fogW",
               { f.fog.density, f.fog.heightK,
                 f.cfg.canopyY or 56, f.cfg.fadeTo or 28 })
