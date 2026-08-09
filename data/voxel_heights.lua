@@ -132,15 +132,23 @@
 -- measured rather than drawn, by flooding the panel tile's own stripe out
 -- from behind them; see CLUB below.
 --
--- And `wall_top` (not a class either): the tile every `wall` cell's TOP
--- face wears, whatever the cell itself draws.  An interior wall band is
--- 16px of art folded upright, and a fully folded run has no drawn row left
--- over to lay flat on top -- so the top repeated the FACE, and the town-map
--- poster and the window of a house came out lying across the top of the
--- wall as well as hanging on it.  What is really up there is the wall's own
+-- And `wall_top` (not a class either): what a `wall` cell's TOP face
+-- wears, whatever the cell itself draws.  An interior wall band is 16px of
+-- art folded upright, and a fully folded run has no drawn row left over to
+-- lay flat on top -- so the top repeated the FACE, and the town-map poster
+-- and the window of a house came out lying across the top of the wall as
+-- well as hanging on it.  What is really up there is the wall's own
 -- capping course, which is exactly the plain panel the decorated column's
--- neighbours draw: name that tile and every wall in the tileset caps with
--- it.  The face is untouched -- the poster still faces the room.
+-- neighbours draw.  The face is untouched -- the poster still faces the
+-- room.  Two forms:
+--
+--   wall_top = <id>             every wall in the tileset caps with this,
+--                               for an atlas that dresses one kind of room
+--                               (the houses, the Centers, Red's floors)
+--   wall_top = { [tile] = id }  only the named tiles are redirected, for
+--                               an atlas that dresses several (LOBBY is
+--                               the department store, the Game Corner,
+--                               Silph, the roof AND the Rocket lift)
 --
 -- Whole BUILDINGS are not tile pins -- one drawing packs a roof seen from
 -- above, a facade seen face-on and sloped ends as diagonal silhouettes,
@@ -771,12 +779,38 @@ return {
       signpost = { 33, 34, 49, 50 },
     },
 
-    -- Oak's Lab (the tileset also serves the Fighting Dojo and Lance's
-    -- room, which use none of these tiles).  The free-standing shelf
-    -- ranks: book rows and base pinned; the shared trim tiles above
-    -- (41/42, also the lab tables' corners) are adopted as caps by the
-    -- bookcase builder rather than pinned.
+    -- Oak's Lab, the Fighting Dojo and Lance's room (one tileset).  The
+    -- lab's free-standing shelf ranks: book rows and base pinned; the
+    -- shared trim tiles above (41/42, also the lab tables' corners) are
+    -- adopted as caps by the bookcase builder rather than pinned.  The
+    -- other two rooms are furnished with one thing between them -- the
+    -- BIRD STATUE, and it is the badge gyms' statue exactly.
     DOJO = {
+      -- THE STATUES.  The same drawing as GYM's, tile for tile on this
+      -- atlas: one cell of figure ($02/$38/$12/$13) over one cell of
+      -- plinth ($22/$23/$32/$33), so it takes the same treatment -- the
+      -- plinth a SOLID 16px block, the figure a per-pixel cutout 5 voxels
+      -- deep (the thin `prop` pool) riding the plinth's top face through
+      -- the authored-box support rule and collapsing to the plinth's
+      -- single cell of footprint.
+      --
+      -- Left derived the pair merged into ONE 32px volume wearing the
+      -- statue art folded onto its face -- the extruded picture, the same
+      -- failure the gyms' statues and the Plateau's avenue had.
+      --
+      -- Every placement of these eight tiles in the game is a statue:
+      -- blocks 49/50/114/115 pack figure over plinth in one 2x2-cell
+      -- block, and they are placed 18 times in LANCES_ROOM (the pairs
+      -- lining his aisle, and the two flanking his dais at cells (6,12)
+      -- and (7,12) over (6,13)/(7,13)) and twice in FIGHTING_DOJO.  Oak's
+      -- Lab, the third map on this atlas, places none of them -- and the
+      -- four figure-only and plinth-only blocks are never placed at all.
+      wall = { 34, 35, 50, 51 },
+      prop = { 2, 18, 19, 56 },
+      -- and each stands on the room's main floor ($11) rather than on
+      -- whatever its neighbours vote -- the gyms' rule, for the gyms'
+      -- reason: a statue against a wall would otherwise take the wall.
+      prop_ground = { [2] = 17, [18] = 17, [19] = 17, [56] = 17 },
       bookcase = { 13, 14, 29, 30 },
       -- the lab tables (the starter-ball display and the north tables):
       -- 41/42 are also the shelf trim the bookcase builder adopts as
@@ -800,6 +834,11 @@ return {
     REDS_HOUSE_2 = {
       -- the wall band with its windows stays one 16px face
       wall = { 0, 36, 37, 52, 53 },
+      -- and caps with the blank course.  The windows of Red's 2F sit at
+      -- cells (5,0) and (7,0); without this the panes came out lying
+      -- across the top of the wall as well as glazing its face, where
+      -- (6,0) between them draws the plain panel that belongs up there
+      wall_top = 0,
       -- the bed: a mattress drawn from above, half a block high
       bed = { 45, 46, 47, 61, 62, 63 },
       -- stools: a seat-high box, seat art on top, legs on the front
@@ -838,6 +877,9 @@ return {
       -- table rides these heights, not the 8/12px class defaults
       heights = { stool = 5, table = 6 },
       wall = { 0, 36, 37, 52, 53 },
+      -- the same blank course caps 1F, whose windows are cells (3,0),
+      -- (5,0) and (7,0) -- (6,0) between the last two is the panel
+      wall_top = 0,
       stool = { 2, 3, 18, 19 },
       -- the dining table (38-44/58-60); its top row also caps the
       -- bookcases below
@@ -1615,6 +1657,14 @@ return {
       wall = { 1, 2, 3, 6, 18, 19, 22, 33, 46, 47,
                62, 63, 68, 70, 71, 72, 73, 75, 76, 77, 78, 79, 84,
                88, 89, 91, 92, 93 },
+      -- The Rocket lift's CAR DOORS (40 over 56, cells (2,1) and (3,1) of
+      -- ROCKET_HIDEOUT_ELEVATOR) cap with the cabin frame's lower course
+      -- -- the tile cell (2,0) draws beneath its own top band, and what
+      -- every other column of that wall already caps with. Keyed by tile
+      -- rather than blanket, unlike the houses: this one atlas dresses the
+      -- department store, the Game Corner, Silph's floors and the roof
+      -- too, and none of those wall tops is a lift frame.
+      wall_top = { [40] = 93, [56] = 93 },
       -- 3F's television sets ($0E/$0F/$1E/$1F): the one drawing in this
       -- tileset that is a deliberate object with a body -- a black-framed
       -- cabinet, a bezel and a lit screen, drawn face-on -- and the same

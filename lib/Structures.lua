@@ -227,7 +227,11 @@ function Structures.forMap(map)
   S = { shapeAt = shapeAt, tileAt = tileAt, outdoor = Map.isOutdoor(def),
         hideBareRing = hullRingOnly or nil,
         runs = {}, skip = {}, ground = {}, doorFold = {}, objectQuads = {},
-        grassQuads = {}, flowerQuads = {}, roundStamps = {}, figures = {} }
+        grassQuads = {}, flowerQuads = {}, roundStamps = {}, figures = {},
+        -- tile key -> the row a collapsed bookcase rank's box actually
+        -- stands on, so a standee supported by one lands on it rather than
+        -- where the drawing put it (see buildBookcases)
+        bookcaseBox = {} }
   Buildings.build(S, map, pixels(tileset), perRow)
 
   -- Fold doors into their buildings. A door cell is WALKABLE (the player
@@ -1882,6 +1886,12 @@ local function bookcaseRank(S, map, perRow, run, i, j, k, pane, srcU, srcV,
   end
 end
 
+-- The arts a `bookcase_backfill = "above"` row may inherit: terrain and
+-- solid bodies only (see the note at the backfill itself).  Everything
+-- absent here -- billboard, post, cylinder, grass, flower -- is a per-pixel
+-- object STANDING on terrain rather than terrain.
+local BACKFILL_ART = { flat = true, top = true, upright = true }
+
 function Structures.buildBookcases(S, map, x0, x1, y0, y1, data, perRow)
   perRow = perRow or map.tileset.tilesPerRow or 16
   -- What to do with the rows a rank VACATES (see TileShape.bookcaseBackfill).
@@ -1928,11 +1938,32 @@ function Structures.buildBookcases(S, map, x0, x1, y0, y1, data, perRow)
           -- shelf standing in a room.  `bookcase_backfill = "above"` hands it
           -- the cell above the run instead, shape and art, so a wall cut into
           -- a terrace has more terrace behind it rather than a trench.
+          --
+          -- Only BODY above backfills: a vacated row wants more of the
+          -- terrace the wall is cut into, and the terrace is whatever lies
+          -- flat, tops out or stands as a solid face.  A per-pixel STANDEE
+          -- above -- a statue, a sign, a bush -- is an object standing ON
+          -- that terrace, and copying it northward builds a second and a
+          -- third of it: Indigo Plateau's avenue statues sit directly on
+          -- the pilasters that collapse here, so every bird came out
+          -- duplicated twice down the shaft behind itself.  A standee
+          -- above means the row has no terrace to inherit, so it takes the
+          -- default and is painted with synthesized ground.
           local covered = math.min(2, front - top + 1)
           local srcK = keyOf(tx, top - 1)
           local src = backfill == "above" and S.shapeAt[srcK] or nil
+          if src and not BACKFILL_ART[src.art] then src = nil end
+          -- Where the box ACTUALLY ends up, remembered for every row of the
+          -- rank: the collapse walks the whole drawn run onto its southmost
+          -- cell, so anything that has to stand ON the box has to be told
+          -- where the box went.  A statue keys off the cell below its own
+          -- drawing, which is the run's NORTH end -- two rows away from the
+          -- box on a two-cell pilaster, which is exactly the distance the
+          -- Plateau's birds floated by.
+          local boxTop = front - covered + 1
           for cy = top, front do
             local tk = keyOf(tx, cy)
+            S.bookcaseBox[tk] = boxTop
             if src and cy <= front - covered then
               S.shapeAt[tk] = src
               S.tileAt[tk] = S.tileAt[srcK]
@@ -2840,9 +2871,10 @@ function Structures.buildObject(S, map, region, cluster,
   -- Town is where it showed: pinning the cliff's slope chain gave the
   -- posts along the cliff edge an authored 16px box to their south, and
   -- they were hoisted to stand on the clifftop instead of the path.
-  local baseY, support = 0, nil
+  local baseY, support, supportRow = 0, nil, nil
   if force and force ~= "opaque" then
-    local bs = S.shapeAt[keyOf(cluster.minX, cluster.maxY + 1)]
+    local belowK = keyOf(cluster.minX, cluster.maxY + 1)
+    local bs = S.shapeAt[belowK]
     local blocked = not map:isWalkableCell(math.floor(cluster.minX / 2),
                                            math.floor(cluster.maxY / 2))
     -- `bookcase` supports as well as `upright`.  A prop drawn above an
@@ -2859,6 +2891,13 @@ function Structures.buildObject(S, map, region, cluster,
        and (bs.art == "upright" or bs.art == "bookcase"
             or bs.class == "building") then
       baseY, support = bs.h, bs
+      -- A bookcase support has MOVED: the collapse walks the whole drawn
+      -- run onto its southmost cell, and the cell tested above is the run's
+      -- north end.  On the Plateau's two-cell pilasters that is a full cell
+      -- away, and the bird stood at the right HEIGHT over open ground with
+      -- its pillar behind it -- floating.  Stand it on the box's own north
+      -- row instead of one row south of its drawing.
+      supportRow = S.bookcaseBox[belowK]
     end
   end
   local atlasW = map.tileset.imageWidth or 128
@@ -2910,8 +2949,9 @@ function Structures.buildObject(S, map, region, cluster,
     end
   end
   for _, c in ipairs(comps) do
-    c.z0 = cluster.minY * 8 + math.floor(c.lowY / 8) * 8
-           + (support and 8 or 0) + (8 - depth) / 2
+    c.z0 = supportRow and (supportRow * 8 + (8 - depth) / 2)
+           or (cluster.minY * 8 + math.floor(c.lowY / 8) * 8
+               + (support and 8 or 0) + (8 - depth) / 2)
     c.z1 = c.z0 + depth
   end
 

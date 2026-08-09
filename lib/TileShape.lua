@@ -764,8 +764,9 @@ function TileShape.bookcaseRelief(tilesetId)
   return not (entry and entry.bookcase_relief == false)
 end
 
---- What every `wall` cell's TOP face wears in this tileset (a tileset
---- entry's wall_top).  Returns a tile id, or nil to leave the top alone.
+--- What a `wall` cell's TOP face wears in this tileset (a tileset entry's
+--- wall_top).  Returns a function tile -> cap tile id (nil for "leave it
+--- alone"), or nil when the tileset says nothing at all.
 ---
 --- A wall band is 16px of art folded upright over a run two drawn rows
 --- deep, so it folds ENTIRELY onto its face and has no row left to lay
@@ -773,17 +774,38 @@ end
 --- poster and window came out lying across the top of the wall as well as
 --- hanging on it.  What is up there is the wall's capping course, which is
 --- the plain panel the decorated column's own neighbours draw; naming it
---- per tileset is the whole fix, because "plain" is a fact about the
---- drawing that nothing in the geometry can measure.
+--- is the whole fix, because "plain" is a fact about the drawing that
+--- nothing in the geometry can measure.
 ---
---- Per tileset rather than per tile: one room caps with one course, and a
---- list keyed by the decorated tiles would have to be extended every time
---- a map hung something new on a wall already covered.
+--- Two forms, because tilesets differ in how far one answer reaches:
+---
+---   wall_top = <id>            EVERY wall cell caps with this course.
+---                              Right where one atlas dresses one kind of
+---                              room -- the town house, the Centers, Red's
+---                              two floors all cap with their own blank
+---                              panel, and a list keyed by the decorated
+---                              tiles would need extending every time a
+---                              map hung something new on the same wall.
+---   wall_top = { [tile] = id } only these tiles are redirected.  Right
+---                              where one atlas dresses several rooms:
+---                              LOBBY is the department store, the Game
+---                              Corner, Silph's floors, the roof AND the
+---                              Rocket lift, and the lift's cabin frame is
+---                              not what a shop wall caps with.
 function TileShape.wallTop(tilesetId)
   local s = load()
   local entry = s and s.tilesets and s.tilesets[tilesetId]
-  local tile = entry and entry.wall_top
-  return type(tile) == "number" and tile or nil
+  local spec = entry and entry.wall_top
+  if type(spec) == "number" then
+    return function() return spec end
+  end
+  if type(spec) == "table" then
+    return function(tile)
+      local cap = spec[tile]
+      return type(cap) == "number" and cap or nil
+    end
+  end
+  return nil
 end
 
 -- Drop the cache: a mod that shadows data/voxel_heights.lua or a tileset
