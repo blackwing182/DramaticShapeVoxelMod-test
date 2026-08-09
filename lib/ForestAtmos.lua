@@ -74,26 +74,24 @@ end
 -- FULL is the point; LOW halves the march and drops the particles, for
 -- hardware that minds a per-pixel loop under 4X supersampling.
 --
--- On ANDROID the ladder itself is shorter: LOW and OFF, with LOW the
--- default. The march needs a depth texture it can READ, and no driver on
--- the phones this runs on has granted one (see newDepth in Voxel3D) --
--- so FULL would be a rung with nothing behind it, which reads as a
--- broken mod rather than a missing feature. LOW there is the haze, the
--- one part of the atmosphere that rides the scene shader and works
--- everywhere. A desktop save opened on a phone stores FULL still;
--- ModSetting's unknown-value fallback lands it on LOW, and putting the
--- save back on the desktop restores the choice.
+-- On ANDROID the same three rungs are offered and LOW is merely the one
+-- the phone STARTS on. The march needs a depth texture it can read, and
+-- the phone drivers that refuse one (see newDepth in Voxel3D) leave FULL
+-- with only the haze behind it -- but that is a thing a player is allowed
+-- to find out and decide about, and a driver that does grant the depth
+-- runs the beams like any desktop. The draw path already subtracts
+-- exactly what is missing rather than breaking (see ForestAtmos.draw), so
+-- the top rung costs nothing where it cannot land.
 local function onAndroid()
   if not (love and love.system and love.system.getOS) then return false end
   local ok, os = pcall(love.system.getOS)
   return ok and os == "Android"
 end
 
-ForestAtmos.setting = onAndroid()
-  and ModSetting.new("atmos", "FOREST FX", { "low", "off" },
-                     { "LOW", "OFF" })
-  or ModSetting.new("atmos", "FOREST FX", { "full", "low", "off" },
-                    { "FULL", "LOW", "OFF" })
+ForestAtmos.setting = ModSetting.new("atmos", "FOREST FX",
+                                     { "full", "low", "off" },
+                                     { "FULL", "LOW", "OFF" })
+if onAndroid() then ForestAtmos.setting:setDefault("low") end
 
 -- the animation clock: ticked by main.lua's always-running update hook,
 -- pinnable (frozen = true) so a screenshot driver can hold a frame still

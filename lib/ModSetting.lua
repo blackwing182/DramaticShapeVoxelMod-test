@@ -31,8 +31,8 @@ local function modId()
 end
 
 -- `values` are the stored values in ladder order and `labels` what the row
--- shows for each; values[1] is the default, and the one an unreadable or
--- unrecognised stored value falls back to.
+-- shows for each; values[1] is the default unless setDefault moves it, and
+-- the default is what an unreadable or unrecognised stored value falls to.
 function ModSetting.new(key, label, values, labels)
   return setmetatable({
     key = key, label = label, values = values, labels = labels,
@@ -40,11 +40,33 @@ function ModSetting.new(key, label, values, labels)
   }, ModSetting)
 end
 
-local function indexOf(self, value)
+-- ------- a default that is not the top of the ladder
+--
+-- Where the ladder's best rung is more than a weak machine should be asked
+-- to spend on its first launch, the answer is a lower DEFAULT and not a
+-- shorter ladder: every rung stays reachable, the player just does not have
+-- to pay for the top one to find out their phone cannot carry it. Same shape
+-- the settings of any modern game have on console and handheld.
+function ModSetting:setDefault(value)
+  for i, v in ipairs(self.values) do
+    if v == value then self.default = i break end
+  end
+  return self
+end
+
+-- The rung a stored value falls back to. Never a gated one -- values[1] is
+-- the rung allows() always admits, so it is the floor under everything.
+function ModSetting:defaultIndex()
+  local i = self.default or 1
+  if i ~= 1 and not self:allows(i) then return 1 end
+  return i
+end
+
+function ModSetting:indexOf(value)
   for i, v in ipairs(self.values) do
     if v == value then return i end
   end
-  return 1
+  return self:defaultIndex()
 end
 
 -- ------- rungs that are not always there
@@ -94,7 +116,7 @@ function ModSetting:read()
     local ok, got = pcall(mod.options.get, mod.options, self.key)
     if ok then value = got end
   end
-  self.index = indexOf(self, value)
+  self.index = self:indexOf(value)
   return self.index
 end
 
@@ -104,7 +126,7 @@ function ModSetting:get()
   -- moved the ROM, or opened the same save on another machine -- reads as
   -- the default rather than as a mode with nothing behind it. The stored
   -- value is left alone, so putting the ROM back restores their choice.
-  if not self:allows(i) then return self.values[1] end
+  if not self:allows(i) then return self.values[self:defaultIndex()] end
   return self.values[i]
 end
 
@@ -144,7 +166,7 @@ end
 -- OverworldBattle), and every caller that had counted to two would have
 -- silently meant something else afterwards.
 function ModSetting:setValue(value, game)
-  return self:setIndex(indexOf(self, value), game)
+  return self:setIndex(self:indexOf(value), game)
 end
 
 -- Step to the next rung that is actually live, in `dir`. Bounded by the
@@ -165,7 +187,7 @@ end
 -- which writes and persists on its own). Nothing to store: just move the
 -- cached index so the next read agrees with it.
 function ModSetting:sync(value)
-  self.index = indexOf(self, value)
+  self.index = self:indexOf(value)
 end
 
 -- The label of the rung actually in force, which is not the stored one when
@@ -174,7 +196,7 @@ end
 -- setting's rung on the second line of the CATEGORY that contains it.
 function ModSetting:valueLabel()
   local i = self:read()
-  return self.labels[self:allows(i) and i or 1]
+  return self.labels[self:allows(i) and i or self:defaultIndex()]
 end
 
 -- The descriptor src/ui/OptionRows.lua renders, in the shape the
@@ -200,12 +222,13 @@ function ModSetting:schema(help)
   for i, v in ipairs(self.values) do
     if self:allows(i) then choices[#choices + 1] = { self.labels[i], v } end
   end
+  local fallback = self.values[self:defaultIndex()]
   if #self.values == 2 and self.values[1] == false then
     return { key = self.key, type = "toggle", label = self.label,
-             default = self.values[1], help = help }
+             default = fallback, help = help }
   end
   return { key = self.key, type = "choice", label = self.label,
-           choices = choices, default = self.values[1], help = help }
+           choices = choices, default = fallback, help = help }
 end
 
 return ModSetting
