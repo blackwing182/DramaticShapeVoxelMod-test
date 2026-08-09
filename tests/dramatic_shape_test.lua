@@ -7002,6 +7002,106 @@ end)()
   T.check(ball.stars == nil, "and the stars burn out on their own")
 end)()
 
+-- ------- an interior wall caps with its own plain course
+--
+-- A wall band is 16px of art over a run two drawn rows deep, so it folds
+-- ENTIRELY onto its south face and has no drawn row left to lay flat on
+-- top. The top therefore repeated the face: the town house's town-map
+-- poster and window, and the Pokemon Center's pokeball poster, came out
+-- lying across the top of the wall as well as hanging on it -- a picture
+-- you look DOWN on from the voxel camera.
+--
+-- `wall_top` names the capping course per tileset (the plain panel the
+-- decorated column's own neighbours draw), and it is a fact about the
+-- drawing that no measurement of the geometry can recover -- nothing
+-- distinguishes "poster" from "panel" but knowing which is which.
+;(function()
+  local Mesher = run.loader.exports.DRAMATIC_SHAPE.lib.require("ChunkMesher")
+  local Struct = run.loader.exports.DRAMATIC_SHAPE.lib.require("Structures")
+  local Shape = run.loader.exports.DRAMATIC_SHAPE.lib.require("TileShape")
+
+  T.eq(Shape.wallTop("HOUSE"), 0,
+    "the town house caps its walls with the blank course")
+  T.eq(Shape.wallTop("POKECENTER"), 40,
+    "and a Center with its striped panel -- the tile cell (9,0) draws")
+  T.eq(Shape.wallTop("DS_NO_SUCH_TILESET"), nil,
+    "a tileset that says nothing keeps the top it always had")
+
+  local FLOOR = 1
+  local function topTiles(tilesetId, rows)
+    local map = {
+      id = "DS_TEST_WALLTOP_" .. tilesetId,
+      tileset = { id = tilesetId, image = "gfx/tilesets/ds_test.png",
+                  tilesPerRow = 16, imageWidth = 128, imageHeight = 48,
+                  blocks = {}, grassTile = -1 },
+      def = { width = 4, height = 2, tileset = tilesetId },
+      walkable = { [FLOOR] = true },
+      waterTiles = {},
+      doorTiles = {},
+      tileAt = function(_, tx, ty)
+        local r = rows[ty + 1]
+        return (r and r[tx + 1]) or FLOOR
+      end,
+      cellTile = function(self, cx, cy) return self:tileAt(cx * 2, cy * 2 + 1) end,
+      isWaterCell = function() return false end,
+      isWalkableCell = function(self, cx, cy)
+        return self:cellTile(cx, cy) == FLOOR
+      end,
+      inBounds = function(_, cx, cy)
+        return cx >= 0 and cy >= 0 and cx < 4 and cy < 2
+      end,
+    }
+    Struct.invalidate(map.id)
+    local verts = Mesher.geometry(map, true, nil)
+    -- the flat quads standing at wall height, keyed by the column they cap
+    local out = {}
+    for i = 1, #verts, 4 do
+      local a, b, c, d = verts[i], verts[i + 1], verts[i + 2], verts[i + 3]
+      if a[2] == b[2] and b[2] == c[2] and c[2] == d[2] and a[2] == 16 then
+        local ax = math.floor(math.min(a[4], b[4], c[4], d[4]) * 128 + 0.5)
+        local ay = math.floor(math.min(a[5], b[5], c[5], d[5]) * 48 + 0.5)
+        local tx = math.floor(math.min(a[1], b[1], c[1], d[1]) / 8)
+        out[tx] = out[tx] or (math.floor(ay / 8) * 16 + math.floor(ax / 8))
+      end
+    end
+    return out, verts
+  end
+
+  -- BLUES_HOUSE's back wall: blank panel, the town-map poster (45/46 over
+  -- 61/62) at cell (3,0)'s block, the window (36 over 52) at (5,0)'s
+  local houseTops, houseVerts = topTiles("HOUSE", {
+    { 0, 0, 45, 46, 36, 36, 0, 0 },
+    { 0, 0, 61, 62, 52, 52, 0, 0 },
+  })
+  for tx = 0, 7 do
+    T.eq(houseTops[tx], 0,
+      ("column %d of the house's back wall caps with the blank course"):format(tx))
+  end
+
+  -- and the FACE is untouched: the poster still hangs in the room, which is
+  -- the half of this the fix must not take with it
+  local hung = {}
+  for _, v in ipairs(houseVerts) do
+    hung[math.floor(math.floor(v[5] * 48 + 0.5) / 8) * 16
+         + math.floor(math.floor(v[4] * 128 + 0.5) / 8)] = true
+  end
+  T.check(hung[45] and hung[46] and hung[61] and hung[62],
+    "the town-map poster is still drawn on the wall it hangs on")
+  T.check(hung[36] and hung[52], "and so is the window")
+
+  -- VIRIDIAN_POKECENTER's back wall: the striped panel with the pokeball
+  -- poster (2/3 over 18/19) spanning cells (3,0) and (4,0)
+  local pcTops = topTiles("POKECENTER", {
+    { 40, 40, 40, 2, 3, 40, 40, 40 },
+    { 40, 40, 40, 18, 19, 40, 40, 40 },
+  })
+  for tx = 0, 7 do
+    T.eq(pcTops[tx], 40,
+      ("column %d of the Center's back wall caps with the striped panel")
+      :format(tx))
+  end
+end)()
+
 Pipelines.reset()
 run.release()
 

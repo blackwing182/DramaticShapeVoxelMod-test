@@ -50,6 +50,9 @@
 --   stair_down_e / _down_w  a sunken stairwell: the cell opens into a
 --                           hole with steps descending toward the named
 --                           side -- stairs that lead DOWN a floor
+--   stair_n / stair_down_n  the same two flights running into the map
+--                           rather than across it, for a staircase drawn
+--                           HEAD-ON: a drawn row is a step, not a column
 --   relief                  a prop drawn from above (a console on the
 --                           floor): the drawing stays flat and the
 --                           pixels inside its black outline extrude a
@@ -128,6 +131,16 @@
 -- The Bike Shop's two wall bicycles are the case -- and the mask there is
 -- measured rather than drawn, by flooding the panel tile's own stripe out
 -- from behind them; see CLUB below.
+--
+-- And `wall_top` (not a class either): the tile every `wall` cell's TOP
+-- face wears, whatever the cell itself draws.  An interior wall band is
+-- 16px of art folded upright, and a fully folded run has no drawn row left
+-- over to lay flat on top -- so the top repeated the FACE, and the town-map
+-- poster and the window of a house came out lying across the top of the
+-- wall as well as hanging on it.  What is really up there is the wall's own
+-- capping course, which is exactly the plain panel the decorated column's
+-- neighbours draw: name that tile and every wall in the tileset caps with
+-- it.  The face is untouched -- the poster still faces the room.
 --
 -- Whole BUILDINGS are not tile pins -- one drawing packs a roof seen from
 -- above, a facade seen face-on and sloped ends as diagonal silhouettes,
@@ -860,6 +873,12 @@ return {
       -- the wall band stays one 16px face: blank courses, the window,
       -- the framed picture, and the schoolhouse blackboard (72-75/88-91)
       wall = { 0, 36, 45, 46, 52, 61, 62, 72, 73, 75, 88, 89, 90, 91 },
+      -- and it caps with the blank course.  Cells (3,0) and (5,0) of the
+      -- town house are the town-map poster (45/46 over 61/62) and the
+      -- window (36 over 52); without this the top of the wall wore the
+      -- poster and the glass, laid flat, instead of the plain panel their
+      -- own left-hand neighbour draws
+      wall_top = 0,
       -- stools: a seat-high box that also seats Daisy
       stool = { 2, 3, 18, 19 },
       -- the dining table (top edge 38/41 also caps the bookcases);
@@ -905,21 +924,28 @@ return {
       -- two flanks -- see `prop` below.
       wall = { 2, 3, 4, 5, 6, 16, 18, 19, 20, 21, 22, 40, 41,
                76, 77 },
+      -- and it caps with the striped panel, the tile cell (9,0) draws.
+      -- The pokeball poster spans cells (3,0) and (4,0) (2/3 over 18/19),
+      -- and without this the top of the wall wore the poster lying flat as
+      -- well as hanging it on the face
+      wall_top = 40,
       -- THE CABLE CLUB STEPS, cut into the back wall at cells (10,0) and
-      -- (12,0) of every Center -- a flight going DOWN, away from the room,
-      -- and the reason `stair_down_n` exists at all: the profile's other
-      -- stairs run east or west and are drawn from the SIDE, where a drawn
-      -- column is a step; these are drawn HEAD-ON, where a drawn row is,
-      -- and no rotation of the east/west reading produces that.
+      -- (12,0) of every Center -- a flight going UP, away from the room, to
+      -- the Center's second floor, and the reason the head-on stair classes
+      -- exist at all: the profile's other stairs run east or west and are
+      -- drawn from the SIDE, where a drawn column is a step; these are drawn
+      -- HEAD-ON, where a drawn row is, and no rotation of the east/west
+      -- reading produces that.
       --
       -- The drawing is its own band table, and it lands exactly on an even
-      -- four-step division of the cell: 4 white rows (the near tread), a
-      -- black nosing, 3 grey, a nosing, 3 checker, then 4 black rows -- the
-      -- dark the flight leaves into, which is also what the far end wall
-      -- wears.  Its first and last COLUMNS are the well's black side walls.
-      -- Drawn row = depth row throughout; the rise is the only number the
-      -- head-on view cannot state, and it takes the class height over the
-      -- four steps like every other flight here.
+      -- four-step division of the cell: 4 white rows (the near tread, the
+      -- one at floor level), a black nosing, 3 grey, a nosing, 3 checker,
+      -- then 4 black rows -- the dark the flight climbs into, which is the
+      -- top step, level with the wall band it is cut through.  Its first and
+      -- last COLUMNS are the opening's black side walls.  Drawn row = depth
+      -- row throughout; the rise is the only number the head-on view cannot
+      -- state, and it takes the class height over the four steps like every
+      -- other flight here.
       --
       -- Pinned as one cell (the class resolves off the top-left tile) but
       -- all four ids carry it, and the scan says they cannot reach anything
@@ -927,7 +953,7 @@ return {
       -- Centers, and the Celadon Hotel on the same id places none of them.
       -- 94 is also the map's warp tile; pins are look-only, so the warp is
       -- untouched and the steps stay walk-through.
-      stair_down_n = { 92, 93, 94, 95 },
+      stair_n = { 92, 93, 94, 95 },
       -- the counters, half a cell high: top band (8) and the one cell of
       -- it that carries the push bell (10, lifted off as a figure below --
       -- the pin stays as the degradation path), front face (24/25, the

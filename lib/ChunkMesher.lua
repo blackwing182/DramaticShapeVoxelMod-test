@@ -301,6 +301,14 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
     return tile
   end
 
+  -- The capping course an interior wall wears on its TOP face (see
+  -- TileShape.wallTop). A wall band folds entirely onto its own face, so
+  -- the top had nothing left to lay flat and repeated the face -- a house's
+  -- town-map poster and window, and a Center's pokeball poster, came out
+  -- lying across the top of the wall as well as hanging on it. Only the top
+  -- is redirected: the face still draws what the map draws.
+  local wallTop = TileShape.wallTop(tileset.id)
+
   -- one atlas-rect UV, optionally cropped to art rows [vTop, vBot] of 8
   local function uvRect(tile, vTop, vBot)
     local ax = (tile % perRow) * 8
@@ -650,6 +658,9 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
                     and (north - 1) or north
             end
             topTile = S.tileAt[keyOf(tx, row)]
+            -- ...unless the tileset names the course its walls cap with,
+            -- which every wall cell wears whatever it draws on its face
+            if wallTop and s.class == "wall" then topTile = wallTop end
           end
           -- water's surface, and only water's: the recessed sheet itself,
           -- never the ground's shoreline bands around it. A cell an object

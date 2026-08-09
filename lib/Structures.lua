@@ -1992,6 +1992,10 @@ end
 -- walls) wear the matching slice of that drawing -- the railing's
 -- diagonal lands along the stepped silhouette -- while treads sample the
 -- art band drawn at their own height.
+--
+-- stair_n / stair_down_n are the same pair of flights running INTO the
+-- map rather than across it, for a staircase drawn head-on; that changes
+-- the art reading enough to need its own branch below.
 local STAIR_STEPS = 4
 
 local STAIR_SHADE = { south = 1.0, north = 0.68, tread = 1.0,
@@ -2004,8 +2008,8 @@ local function stairCell(S, map, data, cx, cy, s)
   local atlasW = map.tileset.imageWidth or 128
   local atlasH = map.tileset.imageHeight or 48
   local quads = S.objectQuads
-  local north = s.class == "stair_down_n"
-  local down = north or s.class == "stair_down_e"
+  local north = s.class == "stair_n" or s.class == "stair_down_n"
+  local down = s.class == "stair_down_n" or s.class == "stair_down_e"
              or s.class == "stair_down_w"
   local east = s.class == "stair_e" or s.class == "stair_down_e"
   local mx, mz = cx * 16, cy * 16
@@ -2077,6 +2081,17 @@ local function stairCell(S, map, data, cx, cy, s)
   -- COLUMNS are its black side walls, and its top band is the darkness the
   -- flight leaves by, which is what the far end wants to wear.
   --
+  -- A flight CLIMBING away (`stair_n`) is the same reading with the sign of
+  -- the rise flipped -- bands still run south to north, drawn row is still
+  -- depth row, the nosing still serves twice.  Two things follow from the
+  -- sign.  The risers turn around: a flight descending away from you closes
+  -- its steps from below and shows you their backs, one climbing away shows
+  -- you their FRONTS, so they face south.  And the drawing's black side
+  -- columns stop being a well's walls and become the walls of the opening
+  -- the flight climbs into: they run from each tread UP to the top of the
+  -- wall band rather than down from the floor.  At the last step the flight
+  -- has reached that top and there is no opening left to wall.
+  --
   -- Every quad here is split at the cell's own 8px seam, in x and in rows
   -- both: `uv` resolves ONE tile per corner, and these four tiles are not
   -- neighbours in the atlas, so a quad that spans a seam interpolates
@@ -2087,7 +2102,8 @@ local function stairCell(S, map, data, cx, cy, s)
     for i = 0, STAIR_STEPS - 1 do
       local a0 = 16 - (i + 1) * runD           -- band i, in art rows
       local a1 = a0 + runD
-      local yTop = -(i + 1) * rise
+      local yTop = (down and -1 or 1) * (i + 1) * rise
+      local ry = (down and -1 or 1) * i * rise        -- the step behind it
       local z0b, z1b = mz + a0, mz + a1
 
       for _, H in ipairs(HALVES) do
@@ -2097,44 +2113,56 @@ local function stairCell(S, map, data, cx, cy, s)
         -- lies on its front lip exactly where the artist drew it
         face({ wx0, yTop, z0b }, { wx1, yTop, z0b },
              { wx1, yTop, z1b }, { wx0, yTop, z1b },
-             ax0, a1, ax1, a0, STAIR_SHADE.wellTread)
+             ax0, a1, ax1, a0,
+             down and STAIR_SHADE.wellTread or STAIR_SHADE.tread)
 
-        -- the riser under that lip.  It faces NORTH -- a flight descending
-        -- away from you turns its risers away with it, and they close the
-        -- steps from below rather than being looked at.  One art row tall,
-        -- so it needs none of `banded`'s row splitting; written straight
-        -- keeps the geometry flush at the seam while the art stays inside
-        -- its tile
-        local ry = -i * rise
-        face({ wx1, yTop, z1b }, { wx0, yTop, z1b },
-             { wx0, ry, z1b }, { wx1, ry, z1b },
-             ax1, a1 - 1, ax0, a1, STAIR_SHADE.riser)
+        -- the riser at that lip, one art row tall -- so it needs none of
+        -- `banded`'s row splitting, and written straight keeps the geometry
+        -- flush at the seam while the art stays inside its tile.  Facing
+        -- north when the flight descends (the steps are closed from below,
+        -- not looked at) and south when it climbs
+        if down then
+          face({ wx1, yTop, z1b }, { wx0, yTop, z1b },
+               { wx0, ry, z1b }, { wx1, ry, z1b },
+               ax1, a1 - 1, ax0, a1, STAIR_SHADE.riser)
+        else
+          face({ wx0, ry, z1b }, { wx1, ry, z1b },
+               { wx1, yTop, z1b }, { wx0, yTop, z1b },
+               ax0, a1 - 1, ax1, a1, STAIR_SHADE.riser)
+        end
 
         -- the deep end, closing the opening this flight is cut into: from
         -- the floor of the well up to the top of the wall band beside it,
-        -- in the drawing's own black top rows
-        if i == STAIR_STEPS - 1 then
+        -- in the drawing's own black top rows.  A climbing flight has no
+        -- such end -- its top tread stands at the wall's own height and
+        -- fills the opening
+        if down and i == STAIR_STEPS - 1 then
           face({ wx1, -h, mz }, { wx0, -h, mz },
                { wx0, h, mz }, { wx1, h, mz },
                ax1, 3.9, ax0, 0.1, STAIR_SHADE.wellEnd)
         end
       end
 
-      -- the well's side walls above this tread, wearing the drawing's own
-      -- black edge columns -- the excavation is walled in its own texels
+      -- the opening's side walls beside this tread, wearing the drawing's
+      -- own black edge columns -- excavation or recess, it is walled in its
+      -- own texels.  Descending they run from the tread up to the floor,
+      -- climbing from the tread up to the top of the wall band
+      local wallTop = down and 0 or h
       local function sideWall(px, sx0, sx1, inward)
         local c
         if inward then                                  -- west wall, faces E
           c = { { px, yTop, z1b }, { px, yTop, z0b },
-                { px, 0, z0b }, { px, 0, z1b } }
+                { px, wallTop, z0b }, { px, wallTop, z1b } }
         else                                            -- east wall, faces W
           c = { { px, yTop, z0b }, { px, yTop, z1b },
-                { px, 0, z1b }, { px, 0, z0b } }
+                { px, wallTop, z1b }, { px, wallTop, z0b } }
         end
         face(c[1], c[2], c[3], c[4], sx0, a1, sx1, a0, STAIR_SHADE.wellN)
       end
-      sideWall(mx, 0.1, 1.3, true)
-      sideWall(mx + 16, 14.7, 15.9, false)
+      if wallTop > yTop then
+        sideWall(mx, 0.1, 1.3, true)
+        sideWall(mx + 16, 14.7, 15.9, false)
+      end
     end
     return
   end

@@ -125,11 +125,13 @@ local FALLBACK_HEIGHTS = {
   stair_w = 16,
   stair_down_e = 16,
   stair_down_w = 16,
-  -- a stairwell descending toward the BACK of the map, drawn head-on
-  -- instead of from the side (the Centers' Cable Club steps).  Its own
-  -- class because the art reading is not the east/west one turned: there
-  -- a drawn COLUMN is a step and a drawn row is height, here a drawn ROW
-  -- is a step and drawn row = depth row, 1:1 down the well
+  -- a flight running toward the BACK of the map, drawn head-on instead of
+  -- from the side (the Centers' Cable Club steps).  Its own class because
+  -- the art reading is not the east/west one turned: there a drawn COLUMN
+  -- is a step and a drawn row is height, here a drawn ROW is a step and
+  -- drawn row = depth row, 1:1 into the opening.  `stair_n` climbs away
+  -- from the room, `stair_down_n` descends into a well
+  stair_n = 16,
   stair_down_n = 16,
 }
 
@@ -221,6 +223,7 @@ local ART = {
   stair_w = "stair",
   stair_down_e = "stair",
   stair_down_w = "stair",
+  stair_n = "stair",
   stair_down_n = "stair",
 }
 
@@ -759,6 +762,28 @@ function TileShape.bookcaseRelief(tilesetId)
   local s = load()
   local entry = s and s.tilesets and s.tilesets[tilesetId]
   return not (entry and entry.bookcase_relief == false)
+end
+
+--- What every `wall` cell's TOP face wears in this tileset (a tileset
+--- entry's wall_top).  Returns a tile id, or nil to leave the top alone.
+---
+--- A wall band is 16px of art folded upright over a run two drawn rows
+--- deep, so it folds ENTIRELY onto its face and has no row left to lay
+--- flat on top -- the top then repeats the face, and a house's town-map
+--- poster and window came out lying across the top of the wall as well as
+--- hanging on it.  What is up there is the wall's capping course, which is
+--- the plain panel the decorated column's own neighbours draw; naming it
+--- per tileset is the whole fix, because "plain" is a fact about the
+--- drawing that nothing in the geometry can measure.
+---
+--- Per tileset rather than per tile: one room caps with one course, and a
+--- list keyed by the decorated tiles would have to be extended every time
+--- a map hung something new on a wall already covered.
+function TileShape.wallTop(tilesetId)
+  local s = load()
+  local entry = s and s.tilesets and s.tilesets[tilesetId]
+  local tile = entry and entry.wall_top
+  return type(tile) == "number" and tile or nil
 end
 
 -- Drop the cache: a mod that shadows data/voxel_heights.lua or a tileset
