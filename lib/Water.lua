@@ -86,23 +86,52 @@ local Water = {}
 
 -- ------- the row
 --
--- Three rungs rather than a toggle, because the two halves of this cost
--- very different things. SKY is a handful of instructions per water pixel
--- and no extra buffers read; FULL adds the screen-space march, which is the
--- part that samples a depth texture twenty-odd times. A phone that wants the
--- sunset on the lake but not the ray march has somewhere to stand.
+-- A ladder rather than a toggle, because the parts of this cost very
+-- different things and are worth very different amounts to different people.
+--
+--   FULL   the screen-space march as well, which is the part that samples a
+--          depth texture twenty-odd times a pixel. The shoreline, the trees
+--          and the player in the water.
+--   SKY    the reflected direction through the sky's own ramp: a handful of
+--          instructions and no extra buffer read. The sunset on the lake,
+--          without the march.
+--   WAVES  no reflection of any kind -- the surface, its crests and the fish
+--          under it, and nothing borrowed from the frame. Cheapest rung that
+--          is still this water rather than the old flat sheet, and the one to
+--          pick if the mirror is not what you wanted from a lake in a Gen 1
+--          overworld. The fish are at their most legible here: with no mirror
+--          over them there is nothing to fade them behind (see FISH_THROUGH).
+--   OFF    no pass at all; the scene shader draws the water mesh as it did
+--          before any of this existed.
 Water.KEY = "water"
 Water.LABEL = "WATER"
 
 Water.setting = ModSetting.new(Water.KEY, Water.LABEL,
-                               { "full", "sky", "off" },
-                               { "FULL", "SKY", "OFF" })
+                               { "full", "sky", "waves", "off" },
+                               { "FULL", "SKY", "WAVES", "OFF" })
+
+-- The rungs as numbers, because two places do need to compare them -- and
+-- neither should be spelling the number. The ladder grew a rung in its middle
+-- once already and every literal 2 in the file quietly meant something else
+-- afterwards.
+Water.LEVEL_OFF = 0
+Water.LEVEL_WAVES = 1
+Water.LEVEL_SKY = 2
+Water.LEVEL_FULL = 3
 
 function Water.level()
   local v = Water.setting:get()
-  if v == "off" then return 0 end
-  if v == "sky" then return 1 end
-  return 2
+  if v == "off" then return Water.LEVEL_OFF end
+  if v == "waves" then return Water.LEVEL_WAVES end
+  if v == "sky" then return Water.LEVEL_SKY end
+  return Water.LEVEL_FULL
+end
+
+-- Whether anything is reflected at all, which is the WAVES rung's whole
+-- point. Named rather than compared against a number at each site: this
+-- ladder has already grown a rung in its middle once.
+function Water.mirrors()
+  return Water.level() >= Water.LEVEL_SKY
 end
 
 -- Whether the reflective pass should run at all (either rung above OFF).
@@ -229,50 +258,124 @@ Water.WAVE_HEIGHT = 5
 -- step down either side. Pitched anywhere near a pixel they stop being waves
 -- and become static -- every column its own island.
 --
+-- The LAST one is the chop, and it is a different kind of thing from the
+-- three above it: a short train, nine world pixels from crest to crest,
+-- carrying well under a pixel of amplitude. On its own it would be invisible
+-- -- but the field is ROUNDED to whole pixels, and a sub-pixel wobble is
+-- exactly what decides which side of a rounding boundary a column falls on.
+-- So it does not add a wave, it frays the ones already there: a crest line
+-- that used to step down in one clean run now breaks up along its length.
+-- That is most of the difference between a surface that reads as water and
+-- one that reads as a pattern scrolling past.
+--
+-- The weights sum to a quarter MORE than the field has room for, and that
+-- overdrive is deliberate. Four sines only reach their own sum where all
+-- four line up, which is almost nowhere -- normalised honestly, the tallest
+-- rung of the ladder is never reached and the surface spends its whole life
+-- in the middle of its range, which is the "everything is always some height
+-- or other" look. Driven past the top, the field CLIPS: the lulls go flat
+-- calm, the crests reach the top rung and hold there for a pixel or two, and
+-- the ladder is used end to end. Both of those are what water does.
+--
 -- Read into the shader source rather than sent as uniforms, so the rate
 -- below can be derived from the same numbers the field is built out of.
 Water.WAVE_TRAINS = {
-  { 0.150, 0.062, 1.60, 0.60 },
-  { 0.058, 0.132, -1.05, 0.29 },
-  { -0.041, 0.033, 0.55, 0.11 },
+  { 0.150, 0.062, 1.60, 0.65 },
+  { 0.058, 0.132, -1.05, 0.35 },
+  { -0.041, 0.033, 0.55, 0.15 },
+  { 0.550, -0.420, 1.70, 0.10 },
 }
 
 -- ------- and what keeps them from reading as one pattern
 --
--- Three fixed trains are still an exactly periodic field: every forty-odd
+-- Four fixed trains are still an exactly periodic field: every forty-odd
 -- pixels of sea wears the same crest at the same height, and a lake's worth
 -- of that reads as wallpaper. Real swell varies two ways a sum of sines
 -- cannot: waves arrive in SETS -- a few tall ones, then a lull -- and a
--- crest line curves as it runs rather than ruling itself across the whole
--- surface. Both are put back with one long-wavelength field each, riding
--- the DOMINANT train only; the two lesser trains stay plain, because they
--- are texture rather than structure and three modulators is soup again.
+-- crest line wanders as it runs rather than ruling itself across the whole
+-- surface.
 --
--- Both wear the trains' own shape, { fx, fz, speed, x }: a direction whose
--- length is the spatial frequency, a phase rate, and what the field does.
--- Their wavelengths sit four to five times the carrier's, far enough apart
--- that neither reads as a wave itself -- the swell as slow weather over the
--- crests, the bend as the crests' own drift.
+-- THE WARP is what puts the second one back, and it is a DISPLACEMENT of the
+-- surface's own coordinates rather than a wobble on one train's phase.
+-- Two long slow fields, one per axis, move the point every train is asked
+-- about: the whole field is dragged sideways by a few pixels, by a different
+-- few pixels a hundred pixels away, and the pattern that would repeat is
+-- sampled somewhere else by the time it comes round. Crests bow, the
+-- separation between two crest lines opens and closes along their length,
+-- and the three trains stay in the relationship they were tuned in -- which
+-- is what bending only the dominant one could never do.
 --
--- THE SWELL scales the dominant train's amplitude; `x` is the DEPTH of the
--- deepest lull, as the fraction of the train it takes away. It runs roughly
--- along the carrier's own direction and slower than it, which is a wave
--- group's honest habit (deep-water groups travel at about half the phase
--- speed) -- so sets of crests swell up, march a while, and hand over to a
--- calm patch that is itself moving.
-Water.WAVE_SWELL = { 0.0325, 0.0134, 0.55, 0.35 }
+-- Each field is { fx, fz, speed }: a direction whose length is the spatial
+-- frequency, and a phase rate. Their wavelengths sit four to five times the
+-- carrier's -- far enough apart that neither reads as a wave of its own, and
+-- what they do reads as the sea wandering rather than as a fifth train.
+--
+-- What it costs is exactness in waveRate's derivation: the carrier's local
+-- frequency now breathes around the number the rate is derived from, so the
+-- one-pixel step is the average step rather than every step's. The step
+-- CLOCK is untouched; only how far a warped stretch of crest moves on one
+-- tick varies, and by under a pixel.
+--
+-- THE FIRST ONE'S DIRECTION IS NOT FREE, and getting it wrong is what put a
+-- pale horizontal stripe across every lake. It is read a second time as the
+-- swell (see WAVE_SWELL), so its own crest lines are where the dominant
+-- train is at its tallest -- a visible band of raised water a hundred and
+-- seventy pixels wide. Pointed ACROSS the carrier, as it first was, those
+-- bands lie across the crests, at a different angle from anything else on
+-- the surface, and the eye reads them as a second, much bigger wave rolling
+-- through at the wrong speed.
+--
+-- Pointed ALONG the carrier they lie PARALLEL to the crest lines, which is
+-- what a wave group is: some crests tall, the next few low, banded the same
+-- way the crests are. The modulation is still there and does the same job;
+-- it just stops being a feature of its own.
+Water.WAVE_WARP = {
+  { 0.0333, 0.0138, 0.35 },
+  { 0.0298, -0.0176, -0.24 },
+}
 
--- THE BEND adds a slow wobble to the dominant train's phase; `x` is the
--- wobble's reach in RADIANS of carrier phase. 1.1 radians against a carrier
--- of about forty pixels bows a crest some seven pixels off its line over
--- the bend's own hundred-and-seventy-five -- a visible curve, not a
--- scribble -- and it runs ACROSS the carrier, which is the direction a
--- crest line actually wanders. What it costs is exactness in waveRate's
--- derivation: the carrier's local frequency now breathes around the number
--- the rate is derived from, so the one-pixel step is the average step
--- rather than every step's. The step CLOCK is untouched; only how far a
--- bowed stretch of crest moves on one tick varies, and by under a pixel.
-Water.WAVE_BEND = { -0.0138, 0.0333, 0.35, 1.10 }
+-- How far the warp may drag the field, in WORLD PIXELS. Seven against a
+-- carrier of about forty is a fifth of a wavelength -- a crest that visibly
+-- wanders off its line over its own run, and nowhere near enough to fold the
+-- field back over itself, which is where a domain warp stops being water and
+-- starts being marble.
+Water.WAVE_WARP_PX = 7.0
+
+-- THE SWELL scales the dominant train's amplitude; the fourth number is the
+-- DEPTH of the deepest lull, as the fraction of the train it takes away. It
+-- runs roughly along the carrier's own direction and slower than it, which
+-- is a wave group's honest habit (deep-water groups travel at about half the
+-- phase speed) -- so sets of crests swell up, march a while, and hand over
+-- to a calm patch that is itself moving.
+--
+-- Its field is the WARP's first one, read a second time rather than summed
+-- again: the two want the same wavelength and the same slow drift, a sine is
+-- the most expensive thing in a function the relief march calls sixteen
+-- times a pixel, and a group of waves that bows where it also swells is what
+-- a set of waves actually does.
+Water.WAVE_SWELL = 0.26
+
+-- ------- the shape of a crest
+--
+-- A sine is symmetric: as much of the surface is above the middle as below
+-- it, and a crest is as broad as the trough beside it. Water is not. Its
+-- crests are narrow and its troughs are long and flat -- the trochoidal
+-- shape every wave in deep water settles into -- and a field of sines is
+-- the single biggest reason a sum of them reads as corrugated iron.
+--
+-- Raising the normalised field to a power past one is that shape: the bottom
+-- of the range is stretched out into flat water and the top is squeezed into
+-- a crest. Under the rounding to whole pixels it does something further and
+-- better -- most of the surface now lands on the same one or two rungs, so
+-- the lake is CALM with waves crossing it, rather than every column being
+-- some height or other all the time.
+--
+-- A WHOLE number, and that is not a detail: the shaping happens inside
+-- waveRaw, which the relief march calls sixteen times for every water pixel
+-- on the screen, and pow() there is sixteen transcendentals a pixel on a
+-- phone. An integer exponent is written out as multiplications instead (see
+-- crestSource), which is one instruction and exactly the same curve.
+Water.WAVE_CREST = 2
 
 -- ------- and the beat they move on
 --
@@ -282,11 +385,15 @@ Water.WAVE_BEND = { -0.0138, 0.0333, 0.35, 1.10 }
 -- that crawls between them smoothly gives away that the quantisation is
 -- only skin deep.
 --
--- 12 a second, a shade under the 15 hand-drawn pixel art is usually
--- animated at: the crests were hurrying, and a big wave is slower than a
--- sprite's walk cycle. Still a clean divisor of the engine's 60, so every
--- step spans the same whole number of frames.
-Water.WAVE_FPS = 12
+-- 10 a second, two thirds of the 15 hand-drawn pixel art is usually animated
+-- at. The rate below is derived from this, so the number is not a cadence
+-- but a SPEED: ten world pixels a second, a lake's swell taking four seconds
+-- to cross a tile and a half. Twelve was a walking pace on a pond.
+--
+-- Still a clean divisor of the engine's 60, which is the real constraint --
+-- every step has to span the same whole number of frames or the surface
+-- limps, moving on five frames and then on six.
+Water.WAVE_FPS = 10
 
 -- How far the dominant train advances each of those steps, in WORLD PIXELS.
 -- One is the honest choice for a stepped surface: the whole field shifts by
@@ -356,6 +463,177 @@ Water.WAVE_SLOPE = 3.5
 -- and how far the horizon lean is allowed to open that up, since it squashes
 -- the same tilt on its way past (see LEAN_FROM)
 Water.WAVE_SLOPE_LEAN = 1.5
+
+-- ------- what a crest wears on top
+--
+-- A surface that only ever reflects is a surface with nothing HAPPENING on
+-- it: the picture in the lake changes as the camera moves, and the lake
+-- itself never does anything.
+--
+-- NOT FOAM, and that is the decision this block is. Whitecaps -- a hash per
+-- column dissolved in as the crest breaks -- are what a photograph of water
+-- has, and they were duly built here and duly thrown out: a speckle keyed on
+-- the column boils in place while the wave travels through it, which is a
+-- particle simulation seen from far away, and everything else in this mode
+-- is drawn rather than simulated.
+--
+-- What replaces it is what N64-era water did instead, and it is a CEL RAMP:
+-- the surface's own height, cut into flat tones by two hard steps. A crest
+-- wears one lighter tone and its very top a lighter one still, with a hard
+-- edge between them, and nothing anywhere is per-pixel or random. So the
+-- bands come out as long sinuous ribbons lying along the crest lines, and
+-- they TRAVEL with the waves that made them instead of fizzing in place.
+--
+-- The two heights are on the smooth 0-to-1 field, and they are high because
+-- the crest shaping already spends most of the surface near the bottom of
+-- it: about a sixth of the lake wears the first band and a twentieth the
+-- second, which is a few ribbons crossing open water rather than a texture.
+Water.CREST_BAND = { 0.58, 0.82 }
+
+-- and how far toward the surface's own lit tone each band lifts. Toward
+-- THAT, not toward white: a band is the same water catching more light, so
+-- it has to stay inside the shading -- a ribbon that goes flat white takes a
+-- crest's lit and shaded faces down to one tone, and a highlight in a
+-- building's shadow should be grey.
+--
+-- Two bands stack, so the very top of a crest gets twice this.
+Water.CREST_LIGHT = 0.20
+
+-- ------- and what is living under it
+--
+-- Foam is what the surface DOES; fish are the only thing in this pass that
+-- says the water has a volume with something in it. They are the cheapest
+-- possible version of that and deliberately so: nothing is stored, nothing
+-- is simulated, and no fish exists between one fragment and the next.
+--
+-- The plane is cut into cells and a cell's own hash decides everything about
+-- the ONE fish in it -- whether there is one, the route it swims, where on
+-- that route it starts and how fast it goes. So the same world pixel is asked
+-- the same question every frame and answers the same thing: the lake is
+-- populated identically from any camera, at any zoom, across a save and a
+-- reload, with no list of fish anywhere and no cost for a lake the size of a
+-- sea.
+--
+-- ONE fish and not a group of them, after two goes at a group. Three bodies
+-- hung off one centre turned together and read as one long animal; spacing
+-- them along the leader's own route instead fixed the turning and left them
+-- in single file, which is not a thing fish do either. Both were the same
+-- mistake -- deriving several animals from one animal's motion. A fish per
+-- cell has no shared motion to give it away, costs LESS than either (one
+-- hash, one route, one body test), and several of them near each other is
+-- just several cells that came up occupied.
+--
+-- Under the surface, so they go into the water's own colour and not into the
+-- reflection -- which is what the Fresnel term is then allowed to fade, but
+-- only part of the way (see FISH_THROUGH).
+
+-- World pixels to a cell -- eight tiles.
+--
+-- It is also a HARD BOUND on everything below, and the reason it is this
+-- small. fishAt only ever asks the cell the pixel it was handed falls in, so
+-- a fish that wandered past its own edge would not appear in the neighbour's
+-- cell -- it would be sliced off along the boundary, and the lake would wear
+-- a grid of invisible knives. Roam plus body has to fit inside half of this,
+-- which the suite checks (see Water.fishReach).
+--
+-- Density is this and FISH_FILL together: a cell this size half-filled is a
+-- fish to every couple of thousand water pixels, which is a lake with things
+-- in it rather than a tank.
+Water.FISH_CELL = 36
+-- and the share of cells that actually hold one.
+Water.FISH_FILL = 0.5
+
+-- A body, in world pixels: half its length along the way it is pointing, and
+-- half its width across. Five by two once doubled, which is all a Gen 1 tile
+-- has room for.
+Water.FISH_BODY = { 2.5, 1.0 }
+
+-- ------- and how it moves
+--
+-- The first version had a PATROL: out along one heading and back, on a
+-- triangle wave. It was cheap and it was wrong -- every fish on the lake
+-- sliding up and down its own short line, each one pinned to the middle of a
+-- cell you could not see but could absolutely make out.
+--
+-- The second was a Lissajous: one sine per axis at an irrational ratio, so
+-- the path never closed. It wandered, which was the point, but it also had
+-- CUSPS -- the places where both sines turn at once, where the fish stalls
+-- dead and then reverses. A fish does not do that, and at a cusp the heading
+-- is undefined, so it also spun on the spot getting out of one.
+--
+-- So: a CIRCLE, with a second, smaller circle carried on it. A circle has one
+-- virtue the sines do not -- it never stops -- and the small one is turned at
+-- an IRRATIONAL multiple of the big one's rate, so the pair never comes back
+-- into step and the fish swims a different loop every time round. The heading
+-- is the derivative, as before, and now it is provably never zero: see
+-- FISH_WOBBLE, which is bounded so the small circle can never out-run the big
+-- one. A fish that points where it is going and banks into the turn, with no
+-- instant where "where it is going" has no answer.
+--
+-- FISH_ROAM is the radius of that pair, and it is most of the way to the
+-- cell's edge: what is left is the room the body needs (see fishReach).
+Water.FISH_ROAM = 14
+
+-- How much of the roam is the small circle rather than the big one. The
+-- wander comes from here and so does the risk: at 1/(1+phi) the small circle
+-- exactly cancels the big one's motion and the stall is back, so the suite
+-- holds this well under it.
+Water.FISH_WOBBLE = 0.2
+
+-- The length of one lap of that path, in world pixels, and how fast the fish
+-- swim along it. The two are related and the suite checks that they are: a
+-- lap of a loop this wide is about two pi times its radius, so stating the
+-- lap length independently is how the pace stays honest -- change the roam
+-- and the fish do not silently start sprinting to keep the same lap time.
+--
+-- Slower than the waves. A fish that keeps up with the swell is a leaf.
+Water.FISH_LAP = 88
+Water.FISH_PPS = 4
+
+-- ------- and no two of them alike
+--
+-- Every fish on the lake sharing one pace is the tell that survived all of
+-- the above: the routes differ, the phases differ, and they still all take
+-- exactly as long to get round. So the cell's hash scales the clock too, over
+-- this much of a spread either way. Costs one multiply and it is the whole
+-- difference between a population and a mechanism.
+--
+-- It also un-syncs the WOBBLE, which is where most of the shape comes from:
+-- two fish at the same phase of the same loop are the same fish twice.
+Water.FISH_PACE = 0.45
+
+-- The furthest a fish gets from its cell's centre: the far side of the roam
+-- -- the two circles at full stretch in the same direction, which is the roam
+-- exactly -- plus the body's own reach. Kept here rather than worked out by
+-- eye because every number above moves it, and the one it must stay under is
+-- half a cell.
+function Water.fishReach()
+  return Water.FISH_ROAM + Water.FISH_BODY[1]
+end
+
+-- The slowest a fish ever goes, as a share of the big circle's own pace: the
+-- small circle turns phi times faster, so at full opposition it takes that
+-- much of the motion away. Above zero is the whole guarantee -- it is what
+-- makes the heading always defined, so a fish never stalls or spins.
+function Water.fishSlowest()
+  return (1 - Water.FISH_WOBBLE) - Water.FISH_WOBBLE * 1.6180340
+end
+
+-- How far a body darkens the water over it. A silhouette, not a sprite:
+-- what is actually visible of a fish under a foot of water at this palette's
+-- depth is a dark shape, and anything more detailed would be four pixels
+-- fighting the waves for the eye.
+Water.FISH_DARK = 0.34
+
+-- and how much of that survives where the surface has gone to mirror.
+--
+-- Nought is the honest answer and it looked broken: the Fresnel term takes
+-- the far half of any lake to almost pure reflection, so the fish existed
+-- only in the near strip by the camera -- which reads not as "you cannot see
+-- into the distance" but as "the fish live at the edges". A floor under it
+-- keeps a shoal legible all the way out, at a fraction of its strength,
+-- which is the cartoon's answer rather than the optician's.
+Water.FISH_THROUGH = 0.45
 
 -- THE MARCH. Steps are in world pixels and lengthen as they go: near the
 -- surface the reflection needs precision (a shoreline is a few pixels), far
@@ -510,6 +788,7 @@ uniform Image reflectTex;
 uniform LOVE_HIGHP_OR_MEDIUMP Image depthTex;
 
 uniform float rays;          // 0 = sky only, 1 = march the screen too
+uniform float mirror;        // 0 on the WAVES rung: reflect nothing at all
 uniform vec3 lookFlat;       // the way the horizon lies from this camera
 uniform float lean;          // and how far the reflection tilts toward it
 uniform float leanElev;      // the elevation it aims at, in radians
@@ -517,6 +796,22 @@ uniform float waveHeight;    // the tallest column, in whole world pixels
 uniform float waveSlope;     // how far a column's neighbours tilt its normal
 uniform float waveSlopeLean; // and how far the horizon lean may open that up
 uniform float waveT;
+// NOT bandAt, which is the name the sky's own band lookup already has below.
+// A uniform sharing it does not shadow the function, it fails to LINK -- and
+// a water shader that will not build is a lake that silently draws flat,
+// which is the hardest failure in this file to notice.
+uniform vec2 crestBand;      // the two smooth heights a lighter tone starts at
+uniform float crestLight;    // and how far toward the lit tone each one lifts
+uniform float fishFill;      // share of cells holding a shoal; 0 = no fish
+uniform float fishCell;      // world pixels between one cell and the next
+uniform vec2 fishBody;       // a body's half length along, half width across
+uniform float fishPace;      // how much the hash may speed one fish up
+uniform float fishWobble;    // share of the roam that is the small circle
+uniform float fishRoam;      // how far from its cell's centre a shoal wanders
+uniform float fishLap;       // world pixels to one lap of that wander
+uniform float fishDark;      // how far a body darkens the water over it
+uniform float fishThrough;   // how much of that survives a mirror surface
+uniform float fishT;         // world pixels swum, on the wave beat
 uniform vec4 faceShade;      // the mesh's own direction shading: E, W, S, N
 uniform vec2 atlasSize;      // the tileset atlas, in texels
 uniform float fresnelFloor;
@@ -797,11 +1092,17 @@ vec4 march(vec3 origin, vec3 dir) {
 // quantisation of. Summed from Water.WAVE_TRAINS, which is where the trains
 // and the reasoning behind their weights live; pasted in rather than sent,
 // so the speed derived from those same numbers cannot drift from the field
-// they describe.
+// they describe. The pasted block warps `q` before it sums anything (see
+// WAVE_WARP), which is why the parameter is written to.
+//
+// The line at the end is the trochoidal shaping (see WAVE_CREST): flat water
+// with crests crossing it, rather than a corrugation that is as much crest as
+// it is trough.
 float waveRaw(vec2 q) {
   float h = 0.0;
 //@TRAINS
-  return h * 0.5 + 0.5;
+  float s = clamp(h * 0.5 + 0.5, 0.0, 1.0);
+//@CREST
 }
 
 // and the voxel surface: that field, in whole world pixels.
@@ -833,11 +1134,72 @@ float waveAt(vec2 q) {
 //
 // Forward differences over one pixel: three samples, and the answer only has
 // to say which way this piece of the surface leans.
-vec3 waveNormal(vec2 q, float tilt) {
+//
+// `h0` hands back the smooth height it already had to sample, because the
+// crest bands want exactly that number and paying for the field a second
+// time to learn it would be the most expensive line in the shader.
+vec3 waveNormal(vec2 q, float tilt, out float h0) {
   float h = waveRaw(q);
+  h0 = h;
   float e = waveRaw(q + vec2(1.0, 0.0)) - h;
   float s = waveRaw(q + vec2(0.0, 1.0)) - h;
   return normalize(vec3(-e * tilt, 1.0, -s * tilt));
+}
+
+// One number per column, evenly spread over 0 to 1 and with no pattern a
+// neighbour shares. The sine is a hash here and not a wave: highp everywhere
+// this stage runs (see the precision block above), so the multiply has the
+// bits to throw away that the trick depends on.
+float waveHash(vec2 q) {
+  return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+// How much of this column is fish -- 0 or 1, because a five-pixel silhouette
+// under a stepped surface has no use for a soft edge.
+//
+// One shoal to a cell and the cell's hash is the whole of its biography (see
+// FISH_CELL): the same hash picks whether it exists and where on its route it
+// starts, both pulled out of the one number by multiplying it up and taking
+// the fraction, which is two unrelated-looking values for the price of one
+// sine. That matters because this runs for every water pixel on the screen.
+//
+// `q` is the column, so the answer is per world pixel and the bodies come out
+// blocky and on the grid, like everything else in this mode.
+float fishAt(vec2 q) {
+  vec2 cell = floor(q / fishCell);
+  float h = waveHash(cell);
+  // before the trigonometry, not after: half the cells are empty water, and
+  // this is what keeps them costing one hash instead of four transcendentals
+  if (h > fishFill) return 0.0;
+  // The route (see FISH_ROAM): a circle, and a smaller one carried on it
+  // turning phi times faster -- irrational, so the two never come back into
+  // step and the loop never closes. A rational ratio here is a figure the eye
+  // learns in a few seconds and then sees every time.
+  //
+  // Everything that separates this fish from the one in the next cell comes
+  // out of the one hash: where it starts on each circle, and how fast it goes
+  // round (see FISH_PACE). Multiplied up and fracted, which is three
+  // unrelated-looking numbers for the price of the one sine the hash cost.
+  float pace = 1.0 + fishPace * (fract(h * 7.13) * 2.0 - 1.0);
+  float w = 6.2831853 * (fishT * pace / fishLap + fract(h * 17.31));
+  float w2 = w * 1.6180340 + 6.2831853 * fract(h * 41.73);
+  // sin and cos of both circles: taken one way they are where the fish is,
+  // taken the other they are the derivative, which is where it is going -- so
+  // it points along its own path and banks into a turn, and the heading costs
+  // nothing the position had not already paid for.
+  vec2 r1 = vec2(sin(w), cos(w));
+  vec2 r2 = vec2(sin(w2), cos(w2));
+  float big = 1.0 - fishWobble;
+  // no epsilon: the small circle is held under 1/(1+phi) of the roam (see
+  // fishSlowest), so this length has a floor and can never be zero
+  vec2 dir = normalize(vec2(-r1.x, r1.y) * big
+                       + vec2(-r2.x, r2.y) * (fishWobble * 1.6180340));
+  vec2 side = vec2(-dir.y, dir.x);
+  vec2 o = q - (cell + 0.5) * fishCell
+           - (r1.yx * big + r2.yx * fishWobble) * fishRoam;
+  float u = dot(o, dir) / fishBody.x;
+  float v = dot(o, side) / fishBody.y;
+  return step(u * u + v * v, 1.0);
 }
 
 
@@ -1047,13 +1409,15 @@ vec4 effect(EFFECT_PREC vec4 color, Image tex, EFFECT_PREC vec2 tc,
   if (p.a < 0.5) discard;
   // `face` is the column's own side shading, which is what makes a crest
   // read as a solid thing with a lit flank rather than as a bright patch
-  vec3 base = p.rgb * vShade * face * sunlight(vSun) * dayTint;
+  float lit = sunlight(vSun);
+  vec3 base = p.rgb * vShade * face * lit * dayTint;
 
   // the reflection follows the WAVES' own shape -- the tilt this column
   // takes from the neighbours it stands beside -- rather than an invented
   // wobble, so the sky and the sun break along the bars instead of across
   // them. Opened up by the lean, which is about to squash it (see below).
-  vec3 n = waveNormal(col, waveSlope * (1.0 + lean * waveSlopeLean));
+  float smooth0;
+  vec3 n = waveNormal(col, waveSlope * (1.0 + lean * waveSlopeLean), smooth0);
   vec3 r = reflect(view, n);
   // the same reflection off a LEVEL surface, which is what the lean below
   // moves: the difference between the two is this column's own contribution
@@ -1092,7 +1456,7 @@ vec4 effect(EFFECT_PREC vec4 color, Image tex, EFFECT_PREC vec2 tc,
   // panning moves nothing and only the waves do.
   float parity = mod(col.x + col.y, 2.0);
   vec3 refl = base;
-  if (skyOn > 0.5) {
+  if (skyOn > 0.5 && mirror > 0.5) {
     refl = bodyAt(r, skyAt(r, parity), parity);
   }
   if (rays > 0.5) {
@@ -1103,10 +1467,50 @@ vec4 effect(EFFECT_PREC vec4 color, Image tex, EFFECT_PREC vec2 tc,
   // Schlick, floored and softened (see FRESNEL_* in Water.lua): the angle
   // still decides, a grazing camera still gets a mirror, and a steep one
   // still gets a pond rather than a flat sticker.
+  //
+  // Scaled by `mirror`, which is 0 on the WAVES rung. Nothing was gathered
+  // into refl there so the mix is already a no-op -- but the same term also
+  // fades the fish for the mirror over them, and on that rung there is none.
   float ct = clamp(dot(-view, n), 0.0, 1.0);
-  float f = fresnelFloor
-            + (fresnelCeil - fresnelFloor) * pow(1.0 - ct, fresnelPower);
+  float f = mirror * (fresnelFloor
+            + (fresnelCeil - fresnelFloor) * pow(1.0 - ct, fresnelPower));
   vec3 rgb = mix(base, refl, clamp(f, 0.0, 1.0));
+
+  // ------- what is living in it (see FISH_CELL in Water.lua)
+  //
+  // AFTER the mix and not before it, which is a deliberate reversal. A fish
+  // is under the surface, so the honest place for it is in `base`, where the
+  // Fresnel term fades it out as the surface goes to mirror -- and that put
+  // the whole population in the near strip by the camera, because the far
+  // half of any lake is mirror. Read as "the fish live at the edges", which
+  // is not what it meant.
+  //
+  // So the fade is kept and floored (see FISH_THROUGH): the mirror still
+  // takes most of a distant shoal, never all of it, and the fish are legible
+  // right across the water.
+  if (fishFill > 0.0) {
+    float seen = mix(1.0, fishThrough, clamp(f, 0.0, 1.0));
+    rgb *= 1.0 - fishDark * seen * fishAt(col);
+  }
+
+  // ------- and the crest bands (see CREST_BAND in Water.lua)
+  //
+  // Over the reflection rather than mixed into it: a band is light ON the
+  // surface, in front of whatever the surface was carrying. The one number it
+  // needs is the smooth height this column stands at, which the normal above
+  // already sampled.
+  //
+  // Two hard steps and nothing else -- no hash, no dither, nothing per-pixel.
+  // That is what makes them ribbons that travel with the crests instead of a
+  // speckle that boils in place, and it is the whole difference between a
+  // drawn surface and a simulated one.
+  //
+  // Lifted toward the light the column is already in -- the mesh's shade, the
+  // face it turns to the camera, the sun's own pass -- so a band keeps the
+  // crest's lit and shaded sides apart, and a highlight in a building's
+  // shadow comes out grey rather than as a hole in the shadow.
+  float band = step(crestBand.x, smooth0) + step(crestBand.y, smooth0);
+  rgb = mix(rgb, vec3(vShade * face * lit) * dayTint, crestLight * band);
 
 #ifdef VOXEL_GRID
   rgb *= 1.0 - gridDark * columnSeam(hit, sheet, axis);
@@ -1143,24 +1547,24 @@ Water._craterSource = craterSource     -- named for the suite
 -- from this table (Water.waveRate), so the field the shader sums has to be
 -- the one that table describes rather than a copy of it kept in step by hand.
 --
--- The dominant train carries the swell and the bend (see WAVE_SWELL): its
--- phase wobbles by the bend field and its amplitude breathes with the swell
--- envelope, both off the same tables the constants above document. One
--- statement per train either way, which is what the suite counts.
+-- The warp comes first and every train is asked about the DISPLACED point
+-- (see WAVE_WARP); the dominant one then breathes with the swell, read off
+-- the warp's own first field rather than summed a second time. One `h +=`
+-- statement per train, which is what the suite counts.
 local function trainSource()
-  local out = {}
+  local a, b = Water.WAVE_WARP[1], Water.WAVE_WARP[2]
+  local out = {
+    ("  vec2 g = vec2(sin(dot(q, vec2(%.4f, %.4f)) + waveT * %.4f),\n"
+     .. "                sin(dot(q, vec2(%.4f, %.4f)) + waveT * %.4f));")
+      :format(a[1], a[2], a[3], b[1], b[2], b[3]),
+    ("  q += g * %.4f;"):format(Water.WAVE_WARP_PX),
+  }
   for i, t in ipairs(Water.WAVE_TRAINS) do
     if i == 1 then
-      local s = Water.WAVE_SWELL
-      local b = Water.WAVE_BEND
       out[#out + 1] = (
-        "  h += sin(dot(q, vec2(%.4f, %.4f)) + waveT * %.4f\n"
-        .. "           + %.4f * sin(dot(q, vec2(%.4f, %.4f)) + waveT * %.4f))\n"
-        .. "       * %.4f * (1.0 - %.4f * (0.5 + 0.5 *\n"
-        .. "           sin(dot(q, vec2(%.4f, %.4f)) + waveT * %.4f)));")
-        :format(t[1], t[2], t[3],
-                b[4], b[1], b[2], b[3],
-                t[4], s[4], s[1], s[2], s[3])
+        "  h += sin(dot(q, vec2(%.4f, %.4f)) + waveT * %.4f)\n"
+        .. "       * %.4f * (1.0 - %.4f * (0.5 + 0.5 * g.x));")
+        :format(t[1], t[2], t[3], t[4], Water.WAVE_SWELL)
     else
       out[#out + 1] = ("  h += sin(dot(q, vec2(%.4f, %.4f)) + waveT * %.4f)"
                        .. " * %.4f;"):format(t[1], t[2], t[3], t[4])
@@ -1171,9 +1575,23 @@ end
 
 Water._trainSource = trainSource       -- named for the suite
 
+-- The crest shaping, written out as multiplications rather than left to
+-- pow() -- see WAVE_CREST for why sixteen transcendentals a pixel is the
+-- thing being avoided. A whole exponent is the only kind this can express,
+-- which is also the only kind the constant is allowed to be.
+local function crestSource()
+  local n = math.max(1, math.floor(Water.WAVE_CREST))
+  local out = { "s" }
+  for _ = 2, n do out[#out + 1] = "s" end
+  return "  return " .. table.concat(out, " * ") .. ";"
+end
+
+Water._crestSource = crestSource       -- named for the suite
+
 local function source(grid, bare)
   local src = SHADER_SRC:gsub("//@CRATERS", (craterSource():gsub("%%", "%%%%")))
   src = src:gsub("//@TRAINS", (trainSource():gsub("%%", "%%%%")))
+  src = src:gsub("//@CREST", (crestSource():gsub("%%", "%%%%")))
   local head = ("#define RAY_STEPS %d\n#define RAY_REFINE %d\n"
                 .. "#define WAVE_STEPS %d\n#define WAVE_STRIDE %.1f\n")
     :format(Water.RAY_STEPS, Water.RAY_REFINE, Water.WAVE_STEPS,
@@ -1229,7 +1647,11 @@ local active = nil        -- the shader this pass bound, or nil
 -- The ripple phase. Driven by the ENGINE's tile-animation clock, the same
 -- 60Hz counter the water tiles rotate on, so the ripple and the art it
 -- ripples move off one number rather than drifting against each other.
-local function waveTime()
+--
+-- Seconds, floored to a beat of `fps`. The engine's counter runs at 60, so
+-- this is the moment the current step began on -- which is what every clock
+-- on this surface is measured from, at whatever rate it ticks.
+local function beat(fps)
   -- lazily, and through the mod namespace: TerrainAtlas reaches into the
   -- engine's renderer at load time, and nothing about a settings row should
   -- depend on that having happened yet
@@ -1237,13 +1659,24 @@ local function waveTime()
     return V.require("TerrainAtlas")._animFrame()
   end)
   if not (ok and type(frame) == "number") then return 0 end
-  -- floored to the wave beat (see WAVE_FPS). The engine's counter runs at
-  -- 60, so this is the frame that step began on.
-  local period = 60 / math.max(1, Water.WAVE_FPS)
-  return (math.floor(frame / period) * period / 60) * Water.waveRate()
+  local period = 60 / math.max(1, fps)
+  return math.floor(frame / period) * period / 60
+end
+
+-- the wave field's own phase, in radians (see WAVE_FPS and waveRate)
+local function waveTime()
+  return beat(Water.WAVE_FPS) * Water.waveRate()
+end
+
+-- how far a shoal has swum along its route, in world pixels. On the wave's
+-- beat rather than a beat of its own: two stepped things moving on different
+-- clocks in the same few pixels is what reads as juddering.
+local function fishTime()
+  return beat(Water.WAVE_FPS) * Water.FISH_PPS
 end
 
 Water._waveTime = waveTime
+Water._fishTime = fishTime
 
 -- Begin the reflective pass.
 --
@@ -1306,7 +1739,8 @@ function Water.begin(ctx)
   send("sunTexel", { texel, texel })
   send("dayTint", Voxel3D.tint or { 1, 1, 1 })
 
-  send("rays", level >= 2 and 1 or 0)
+  send("rays", level >= Water.LEVEL_FULL and 1 or 0)
+  send("mirror", Water.mirrors() and 1 or 0)
   -- the horizon lean, and the direction it leans toward (see Water.lean)
   send("lookFlat", ctx.lookFlat or { 0, 0, -1 })
   send("lean", Water.lean(ctx.descent))
@@ -1315,6 +1749,18 @@ function Water.begin(ctx)
   send("waveSlope", Water.WAVE_SLOPE)
   send("waveSlopeLean", Water.WAVE_SLOPE_LEAN)
   send("waveT", waveTime())
+  send("crestBand", { Water.CREST_BAND[1], Water.CREST_BAND[2] })
+  send("crestLight", Water.CREST_LIGHT)
+  send("fishFill", Water.FISH_FILL)
+  send("fishCell", Water.FISH_CELL)
+  send("fishBody", { Water.FISH_BODY[1], Water.FISH_BODY[2] })
+  send("fishPace", Water.FISH_PACE)
+  send("fishWobble", Water.FISH_WOBBLE)
+  send("fishRoam", Water.FISH_ROAM)
+  send("fishLap", Water.FISH_LAP)
+  send("fishDark", Water.FISH_DARK)
+  send("fishThrough", Water.FISH_THROUGH)
+  send("fishT", fishTime())
   -- the columns' side faces wear the MESH's own direction shading, sent in
   -- rather than restated, so a wave crest is lit like every other voxel
   local fs = Voxel3D.FACE_SHADE

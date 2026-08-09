@@ -502,7 +502,8 @@ local SETTINGS = {
     cat = "world" },
   { Water.setting,
     "Reflections on water: SKY is the sun, moon and sky alone, and FULL "
-    .. "adds the shoreline and trees behind it.",
+    .. "adds the shoreline and trees behind it. WAVES reflects nothing -- "
+    .. "just the moving surface and the fish under it.",
     cat = "world" },
   { DayNight.setting,
     "What time it is outdoors -- pinned to an hour, running on a ten-minute "

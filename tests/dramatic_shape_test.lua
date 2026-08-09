@@ -2699,21 +2699,35 @@ local TileShapeHeights = Shapes.heights()
 
 -- ------- the ladder
 --
--- Three rungs, not a toggle: the sky half of this costs a handful of
+-- A ladder, not a toggle: the sky half of this costs a handful of
 -- instructions and the screen-space half costs a ray march, so a machine
--- that wants the sunset on the lake but not the march has somewhere to sit.
+-- that wants the sunset on the lake but not the march has somewhere to sit
+-- -- and so does a player who did not want a mirror in a Gen 1 overworld.
+--
+-- Checked by NAME at every rung. This ladder has already grown a rung in its
+-- middle once, and every test that had counted to two would have quietly
+-- gone on passing while meaning something else.
 T.eq(Water.setting.values[1], "full",
   "FULL is the default -- reflections are the point of having the row")
 Water.setting:sync("full")            -- the row test above stepped it
-T.eq(Water.level(), 2, "and it reads back as the full pass")
 T.eq(Water.enabled(), true, "which is on")
+T.eq(Water.mirrors(), true, "and reflects")
 Water.setting:sync("sky")
-T.eq(Water.level(), 1, "SKY keeps the pass but drops the screen-space march")
-T.eq(Water.enabled(), true, "and is still a reflection")
+T.check(Water.level() < Water.LEVEL_FULL,
+  "SKY keeps the pass but drops the screen-space march")
+T.eq(Water.mirrors(), true, "and is still a reflection")
+Water.setting:sync("waves")
+T.eq(Water.enabled(), true, "WAVES still runs the pass -- surface and fish")
+T.eq(Water.mirrors(), false,
+  "and reflects nothing at all, which is the whole of what it is for")
+T.check(Water.level() > 0 and Water.level() < Water.LEVEL_SKY,
+  "sitting below SKY on the ladder: strictly less than the rung above it "
+  .. "and strictly more than no pass")
 Water.setting:sync("off")
 T.eq(Water.level(), 0, "OFF is no pass at all")
 T.eq(Water.enabled(), false,
   "which is what puts the water back in the ordinary scene shader")
+T.eq(Water.mirrors(), false, "and so cannot reflect either")
 Water.setting:sync("full")
 
 -- ------- the waves are geometry, not shading -- and they step at 15fps
@@ -2735,7 +2749,6 @@ local function at(f)
 end
 
 local period = 60 / Water.WAVE_FPS
-T.eq(period, 5, "12 steps a second is one every five engine frames")
 T.eq(math.floor(period), period,
   "and the beat divides the engine's 60 exactly, so every step spans the "
   .. "same whole number of frames")
@@ -2771,22 +2784,131 @@ T.eq(select(2, trains:gsub("h %+= sin", "")), #Water.WAVE_TRAINS,
 T.check(trains:find(("%.4f"):format(t[1]), 1, true) ~= nil,
   "at the frequency the table states")
 
--- the variation that keeps three periodic trains from reading as wallpaper:
--- the dominant train's amplitude breathes with the swell and its crests bow
--- with the bend, both pasted from their own tables like the trains are
-T.check(trains:find(("%.4f"):format(Water.WAVE_SWELL[1]), 1, true) ~= nil
-        and trains:find(("%.4f"):format(Water.WAVE_BEND[1]), 1, true) ~= nil,
-  "the swell and the bend reach the shader off the tables that document "
-  .. "them, not off copies kept in step by hand")
-T.check(Water.WAVE_SWELL[4] > 0 and Water.WAVE_SWELL[4] < 1,
+-- the variation that keeps four periodic trains from reading as wallpaper:
+-- the field's own coordinates are dragged about by two long slow fields
+-- before any train is asked, and the dominant train's amplitude breathes
+-- with a swell read off the first of them
+T.check(trains:find(("%.4f"):format(Water.WAVE_WARP[1][1]), 1, true) ~= nil
+        and trains:find(("%.4f"):format(Water.WAVE_WARP[2][1]), 1, true) ~= nil
+        and trains:find(("%.4f"):format(Water.WAVE_WARP_PX), 1, true) ~= nil,
+  "the warp reaches the shader off the table that documents it, not off a "
+  .. "copy kept in step by hand")
+T.check(trains:find(("%.4f"):format(Water.WAVE_SWELL), 1, true) ~= nil,
+  "and so does the swell")
+T.check(Water.WAVE_SWELL > 0 and Water.WAVE_SWELL < 1,
   "the swell's deepest lull thins the dominant train without deleting or "
   .. "inverting it -- a sea with sets in it, not a sea that turns off")
-for _, mod in ipairs({ Water.WAVE_SWELL, Water.WAVE_BEND }) do
+for _, mod in ipairs(Water.WAVE_WARP) do
   local mf = math.sqrt(mod[1] * mod[1] + mod[2] * mod[2])
   T.check(mf * 3.5 < freq,
-    "a modulator's wavelength sits several times the carrier's, far enough "
-    .. "apart that it reads as weather over the waves rather than as a "
-    .. "fourth wave -- which would be the soup the weights exist to avoid")
+    "a warp field's wavelength sits several times the carrier's, far enough "
+    .. "apart that it reads as the sea wandering rather than as another "
+    .. "wave -- which would be the soup the weights exist to avoid")
+end
+T.check(Water.WAVE_WARP_PX * freq < math.pi,
+  "and it drags the field by less than half a wavelength, which is where a "
+  .. "domain warp stops folding crests and starts folding the field over "
+  .. "itself")
+T.check(Water.WAVE_CREST > 1,
+  "the field is shaped past linear on its way out: narrow crests over long "
+  .. "flat troughs, which is the shape water settles into and the shape a "
+  .. "sum of sines never has")
+-- ------- the swell's direction, which is not a free choice
+--
+-- The warp's first field is read a second time as the swell, so its crest
+-- lines are the bands of raised water the dominant train swells into. Turned
+-- across the carrier they lie across the crests and read as a second, far
+-- bigger wave rolling through at the wrong angle -- which is exactly the pale
+-- horizontal stripe this once put over every lake.
+do
+  local c, s = Water.WAVE_TRAINS[1], Water.WAVE_WARP[1]
+  local cl = math.sqrt(c[1] * c[1] + c[2] * c[2])
+  local sl = math.sqrt(s[1] * s[1] + s[2] * s[2])
+  local along = math.abs((c[1] * s[1] + c[2] * s[2]) / (cl * sl))
+  T.check(along > 0.9,
+    "the swell runs ALONG the carrier, so its bands lie parallel to the "
+    .. "crest lines they raise -- which is what a wave group is, and the one "
+    .. "direction that does not read as a wave of its own")
+end
+
+-- ------- the crest bands: a cel ramp, not foam
+--
+-- Two hard steps on the smooth field, and what has to hold is that they sit
+-- near the TOP of it. Slide them down and the ribbons stop being highlights
+-- on passing crests and become the colour most of the lake is.
+T.check(Water.CREST_BAND[1] > 0.5 and Water.CREST_BAND[1] < Water.CREST_BAND[2]
+        and Water.CREST_BAND[2] < 1,
+  "the two bands are ordered and both belong to the top of the field -- a "
+  .. "lighter tone on a crest, not a tone the whole surface wears")
+T.check(Water.CREST_LIGHT * 2 < 0.75,
+  "and even stacked they lift a crest toward its own lit tone rather than "
+  .. "to it: a ribbon that reaches white has flattened the crest's lit and "
+  .. "shaded faces into one, which is the crest's shape gone")
+
+-- THE FISH, and the one thing about them that cannot be seen by reading the
+-- shader: fishAt asks only the cell the pixel falls in, so a fish that
+-- wandered past its own edge would be sliced off along the boundary instead
+-- of crossing it. Every number in the block moves that reach.
+T.check(Water.FISH_FILL > 0 and Water.FISH_FILL < 1,
+  "some cells hold a fish and some do not -- empty water is what makes a "
+  .. "fish an event rather than a texture")
+T.check(Water.fishReach() * 2 < Water.FISH_CELL,
+  "a fish stays inside its own cell at the far side of its wander, so the "
+  .. "grid it was cut from never cuts one in half")
+-- The route is a circle with a smaller one carried on it, and the small one
+-- turns phi times faster -- so past 1/(1+phi) of the radius it can cancel the
+-- big one\'s motion outright. At that point the fish stops dead, and because
+-- the heading is the derivative it also has no heading: it spins on the spot
+-- getting out of the stall. This is the margin against that.
+T.check(Water.fishSlowest() > 0.25,
+  "the wander never stalls -- a fish that stops has no heading, and a fish "
+  .. "with no heading spins")
+T.check(Water.FISH_PACE > 0 and Water.FISH_PACE < 1,
+  "and no two of them swim at the same speed: one pace across the whole "
+  .. "lake is the tell that they are one mechanism rather than a population")
+T.check(Water.FISH_PPS < Water.WAVE_PIXELS_PER_STEP * Water.WAVE_FPS,
+  "and it swims slower than the swell travels -- a fish that keeps up with "
+  .. "the waves is a leaf")
+-- the lap length is what keeps the stated pace honest: the path is a loop
+-- about FISH_ROAM wide, so one lap of it is roughly its own circumference,
+-- and a roam that grew without this growing with it would have the fish
+-- sprinting to hold the same lap time
+T.check(math.abs(Water.FISH_LAP - 2 * math.pi * Water.FISH_ROAM)
+        < Water.FISH_LAP * 0.25,
+  "one lap of the wander is about as long as the wander is round, so "
+  .. "FISH_PPS is the pace the fish actually swim at")
+T.check(Water.FISH_THROUGH > 0 and Water.FISH_THROUGH < 1,
+  "a mirror surface takes most of a fish and never all of it -- at nought "
+  .. "the fish exist only in the near strip, which reads as fish that live "
+  .. "at the water's edge")
+do
+  local TA = run.loader.exports.DRAMATIC_SHAPE.lib.require("TerrainAtlas")
+  local real = TA._animFrame
+  local f = 0
+  TA._animFrame = function() return f end
+  local swum = {}
+  for i = 0, 59 do f = i swum[Water._fishTime()] = true end
+  local n = 0
+  for _ in pairs(swum) do n = n + 1 end
+  T.eq(n, Water.WAVE_FPS,
+    "and a fish moves on the wave's own beat -- two stepped things on "
+    .. "different clocks in the same few pixels is what judders")
+  TA._animFrame = real
+end
+do
+  -- the pace spread is what makes them a population rather than one
+  -- mechanism run several times, and a uniform that is declared and never
+  -- read is exactly the shape that failure takes
+  local src = Water._source(false)
+  local at = src:find("float fishAt", 1, true)
+  local body = src:sub(at, src:find("\n}", at, true) or at)
+  T.check(body:find("fishPace", 1, true) ~= nil,
+    "the hash sets each fish's own speed inside fishAt -- one pace across "
+    .. "the lake and they read as one thing repeated")
+  T.check(body:find("for (int", 1, true) == nil,
+    "and there is one body per cell, not a formation: a loop in here is a "
+    .. "shoal derived from one animal's motion, which is what read as one "
+    .. "long animal both times it was tried")
 end
 
 T.check(Water.WAVE_HEIGHT > -TileShapeHeights.water,
